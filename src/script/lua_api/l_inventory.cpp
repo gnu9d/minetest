@@ -557,3 +557,619 @@ void ModApiInventory::Initialize(lua_State *L, int top)
 	API_FCT(remove_detached_inventory_raw);
 	API_FCT(get_inventory);
 }
+
+#ifndef SERVER
+
+/*
+    ClInvRef
+*/
+
+ClInvRef* ClInvRef::checkobject(lua_State *L, int narg)
+{
+	luaL_checktype(L, narg, LUA_TUSERDATA);
+	void *ud = luaL_checkudata(L, narg, className);
+	if(!ud) luaL_typerror(L, narg, className);
+	return *(ClInvRef**)ud;  // unbox pointer
+}
+
+Inventory* ClInvRef::getinv(lua_State *L, ClInvRef *ref)
+{
+	return getClient(L)->getInventory(ref->m_loc);
+}
+
+InventoryList* ClInvRef::getlist(lua_State *L, ClInvRef *ref,
+		const char *listname)
+{
+	NO_MAP_LOCK_REQUIRED;
+	Inventory *inv = getinv(L, ref);
+	if(!inv)
+		return NULL;
+	return inv->getList(listname);
+}
+
+void ClInvRef::reportInventoryChange(lua_State *L, ClInvRef *ref)
+{
+	// Inform other things that the inventory has changed
+	getClient(L)->setInventoryModified(ref->m_loc);
+}
+
+// Exported functions
+
+// garbage collector
+int ClInvRef::gc_object(lua_State *L) {
+	ClInvRef *o = *(ClInvRef **)(lua_touserdata(L, 1));
+	delete o;
+	return 0;
+}
+
+// is_empty(self, listname) -> true/false
+int ClInvRef::l_is_empty(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ClInvRef *ref = checkobject(L, 1);
+	const char *listname = luaL_checkstring(L, 2);
+	InventoryList *list = getlist(L, ref, listname);
+	if(list && list->getUsedSlots() > 0){
+		lua_pushboolean(L, false);
+	} else {
+		lua_pushboolean(L, true);
+	}
+	return 1;
+}
+
+// get_size(self, listname)
+int ClInvRef::l_get_size(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ClInvRef *ref = checkobject(L, 1);
+	const char *listname = luaL_checkstring(L, 2);
+	InventoryList *list = getlist(L, ref, listname);
+	if(list){
+		lua_pushinteger(L, list->getSize());
+	} else {
+		lua_pushinteger(L, 0);
+	}
+	return 1;
+}
+
+// get_width(self, listname)
+int ClInvRef::l_get_width(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ClInvRef *ref = checkobject(L, 1);
+	const char *listname = luaL_checkstring(L, 2);
+	InventoryList *list = getlist(L, ref, listname);
+	if(list){
+		lua_pushinteger(L, list->getWidth());
+	} else {
+		lua_pushinteger(L, 0);
+	}
+	return 1;
+}
+
+// set_size(self, listname, size)
+int ClInvRef::l_set_size(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ClInvRef *ref = checkobject(L, 1);
+	const char *listname = luaL_checkstring(L, 2);
+
+	int newsize = luaL_checknumber(L, 3);
+	if (newsize < 0) {
+		lua_pushboolean(L, false);
+		return 1;
+	}
+
+	Inventory *inv = getinv(L, ref);
+	if(inv == NULL){
+		lua_pushboolean(L, false);
+		return 1;
+	}
+	if(newsize == 0){
+		inv->deleteList(listname);
+		reportInventoryChange(L, ref);
+		lua_pushboolean(L, true);
+		return 1;
+	}
+	InventoryList *list = inv->getList(listname);
+	if(list){
+		list->setSize(newsize);
+	} else {
+		list = inv->addList(listname, newsize);
+		if (!list)
+		{
+			lua_pushboolean(L, false);
+			return 1;
+		}
+	}
+	reportInventoryChange(L, ref);
+	lua_pushboolean(L, true);
+	return 1;
+}
+
+// set_width(self, listname, size)
+int ClInvRef::l_set_width(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ClInvRef *ref = checkobject(L, 1);
+	const char *listname = luaL_checkstring(L, 2);
+	int newwidth = luaL_checknumber(L, 3);
+	Inventory *inv = getinv(L, ref);
+	if(inv == NULL){
+		return 0;
+	}
+	InventoryList *list = inv->getList(listname);
+	if(list){
+		list->setWidth(newwidth);
+	} else {
+		return 0;
+	}
+	reportInventoryChange(L, ref);
+	return 0;
+}
+
+// get_stack(self, listname, i) -> itemstack
+int ClInvRef::l_get_stack(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ClInvRef *ref = checkobject(L, 1);
+	const char *listname = luaL_checkstring(L, 2);
+	int i = luaL_checknumber(L, 3) - 1;
+	InventoryList *list = getlist(L, ref, listname);
+	ItemStack item;
+	if(list != NULL && i >= 0 && i < (int) list->getSize())
+		item = list->getItem(i);
+	LuaItemStack::create(L, item);
+	return 1;
+}
+
+// set_stack(self, listname, i, stack) -> true/false
+int ClInvRef::l_set_stack(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ClInvRef *ref = checkobject(L, 1);
+	const char *listname = luaL_checkstring(L, 2);
+	int i = luaL_checknumber(L, 3) - 1;
+	ItemStack newitem = read_item(L, 4, getClient(L)->idef());
+	InventoryList *list = getlist(L, ref, listname);
+	if(list != NULL && i >= 0 && i < (int) list->getSize()){
+		list->changeItem(i, newitem);
+		reportInventoryChange(L, ref);
+		lua_pushboolean(L, true);
+	} else {
+		lua_pushboolean(L, false);
+	}
+	return 1;
+}
+
+// get_list(self, listname) -> list or nil
+int ClInvRef::l_get_list(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ClInvRef *ref = checkobject(L, 1);
+	const char *listname = luaL_checkstring(L, 2);
+	Inventory *inv = getinv(L, ref);
+	if(inv){
+		push_inventory_list(L, inv, listname);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+// set_list(self, listname, list)
+int ClInvRef::l_set_list(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ClInvRef *ref = checkobject(L, 1);
+	const char *listname = luaL_checkstring(L, 2);
+	Inventory *inv = getinv(L, ref);
+	if(inv == NULL){
+		return 0;
+	}
+	InventoryList *list = inv->getList(listname);
+	if(list)
+		read_inventory_list(L, 3, inv, listname,
+				getServer(L), list->getSize());
+	else
+		read_inventory_list(L, 3, inv, listname, getClient(L));
+	reportInventoryChange(L, ref);
+	return 0;
+}
+
+// get_lists(self) -> list of InventoryLists
+int ClInvRef::l_get_lists(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ClInvRef *ref = checkobject(L, 1);
+	Inventory *inv = getinv(L, ref);
+	if (!inv) {
+		return 0;
+	}
+	std::vector<const InventoryList*> lists = inv->getLists();
+	std::vector<const InventoryList*>::iterator iter = lists.begin();
+	lua_createtable(L, 0, lists.size());
+	for (; iter != lists.end(); iter++) {
+		const char* name = (*iter)->getName().c_str();
+		lua_pushstring(L, name);
+		push_inventory_list(L, inv, name);
+		lua_rawset(L, -3);
+	}
+	return 1;
+}
+
+// set_lists(self, lists)
+int ClInvRef::l_set_lists(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ClInvRef *ref = checkobject(L, 1);
+	Inventory *inv = getinv(L, ref);
+	if (!inv) {
+		return 0;
+	}
+
+	// Make a temporary inventory in case reading fails
+	Inventory *tempInv(inv);
+	tempInv->clear();
+
+	Client *clt = getClient(L);
+
+	lua_pushnil(L);
+	luaL_checktype(L, 2, LUA_TTABLE);
+	while (lua_next(L, 2)) {
+		const char *listname = lua_tostring(L, -2);
+		read_inventory_list(L, -1, tempInv, listname, clt);
+		lua_pop(L, 1);
+	}
+	inv = tempInv;
+	return 0;
+}
+
+// add_item(self, listname, itemstack or itemstring or table or nil) -> itemstack
+// Returns the leftover stack
+int ClInvRef::l_add_item(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ClInvRef *ref = checkobject(L, 1);
+	const char *listname = luaL_checkstring(L, 2);
+	ItemStack item = read_item(L, 3, getClient(L)->idef());
+	InventoryList *list = getlist(L, ref, listname);
+	if(list){
+		ItemStack leftover = list->addItem(item);
+		if(leftover.count != item.count)
+			reportInventoryChange(L, ref);
+		LuaItemStack::create(L, leftover);
+	} else {
+		LuaItemStack::create(L, item);
+	}
+	return 1;
+}
+
+// room_for_item(self, listname, itemstack or itemstring or table or nil) -> true/false
+// Returns true if the item completely fits into the list
+int ClInvRef::l_room_for_item(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ClInvRef *ref = checkobject(L, 1);
+	const char *listname = luaL_checkstring(L, 2);
+	ItemStack item = read_item(L, 3, getClient(L)->idef());
+	InventoryList *list = getlist(L, ref, listname);
+	if(list){
+		lua_pushboolean(L, list->roomForItem(item));
+	} else {
+		lua_pushboolean(L, false);
+	}
+	return 1;
+}
+
+// contains_item(self, listname, itemstack or itemstring or table or nil, [match_meta]) -> true/false
+// Returns true if the list contains the given count of the given item
+int ClInvRef::l_contains_item(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ClInvRef *ref = checkobject(L, 1);
+	const char *listname = luaL_checkstring(L, 2);
+	ItemStack item = read_item(L, 3, getClient(L)->idef());
+	InventoryList *list = getlist(L, ref, listname);
+	bool match_meta = false;
+	if (lua_isboolean(L, 4))
+		match_meta = readParam<bool>(L, 4);
+	if (list) {
+		lua_pushboolean(L, list->containsItem(item, match_meta));
+	} else {
+		lua_pushboolean(L, false);
+	}
+	return 1;
+}
+
+// remove_item(self, listname, itemstack or itemstring or table or nil) -> itemstack
+// Returns the items that were actually removed
+int ClInvRef::l_remove_item(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ClInvRef *ref = checkobject(L, 1);
+	const char *listname = luaL_checkstring(L, 2);
+	ItemStack item = read_item(L, 3, getClient(L)->idef());
+	InventoryList *list = getlist(L, ref, listname);
+	if(list){
+		ItemStack removed = list->removeItem(item);
+		if(!removed.empty())
+			reportInventoryChange(L, ref);
+		LuaItemStack::create(L, removed);
+	} else {
+		LuaItemStack::create(L, ItemStack());
+	}
+	return 1;
+}
+
+// get_location() -> location (like get_inventory(location))
+int ClInvRef::l_get_location(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ClInvRef *ref = checkobject(L, 1);
+	const InventoryLocation &loc = ref->m_loc;
+	switch(loc.type){
+	case InventoryLocation::PLAYER:
+		lua_newtable(L);
+		lua_pushstring(L, "player");
+		lua_setfield(L, -2, "type");
+		lua_pushstring(L, loc.name.c_str());
+		lua_setfield(L, -2, "name");
+		return 1;
+	case InventoryLocation::NODEMETA:
+		lua_newtable(L);
+		lua_pushstring(L, "node");
+		lua_setfield(L, -2, "type");
+		push_v3s16(L, loc.p);
+		lua_setfield(L, -2, "pos");
+		return 1;
+	case InventoryLocation::DETACHED:
+		lua_newtable(L);
+		lua_pushstring(L, "detached");
+		lua_setfield(L, -2, "type");
+		lua_pushstring(L, loc.name.c_str());
+		lua_setfield(L, -2, "name");
+		return 1;
+	case InventoryLocation::UNDEFINED:
+	case InventoryLocation::CURRENT_PLAYER:
+		break;
+	}
+	lua_newtable(L);
+	lua_pushstring(L, "undefined");
+	lua_setfield(L, -2, "type");
+	return 1;
+}
+
+
+ClInvRef::ClInvRef(const InventoryLocation &loc):
+	m_loc(loc)
+{
+}
+
+// Creates an ClInvRef and leaves it on top of stack
+// Not callable from Lua; all references are created on the C side.
+void ClInvRef::create(lua_State *L, const InventoryLocation &loc)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ClInvRef *o = new ClInvRef(loc);
+	*(void **)(lua_newuserdata(L, sizeof(void *))) = o;
+	luaL_getmetatable(L, className);
+	lua_setmetatable(L, -2);
+}
+void ClInvRef::createGCAOPlayer(lua_State *L, GenericCAO *cao)
+{
+	NO_MAP_LOCK_REQUIRED;
+	InventoryLocation loc;
+	loc.setPlayer(cao->getName());
+	create(L, loc);
+}
+void ClInvRef::createNodeMeta(lua_State *L, v3s16 p)
+{
+	InventoryLocation loc;
+	loc.setNodeMeta(p);
+	create(L, loc);
+}
+
+// drop(self, listname, index, count)
+int ClInvRef::l_drop(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ClInvRef *ref = checkobject(L, 1);
+	Inventory *inv = getinv(L, ref);
+	if(inv == NULL){
+		return 0;
+	}
+
+    const InventoryLocation &loc = ref->m_loc;
+	IDropAction *a = new IDropAction();
+    a->count = (u16)readParam<int>(L, 4);
+    a->from_inv = loc;
+    a->from_list = luaL_checkstring(L, 2);
+    a->from_i = luaL_checknumber(L, 3) - 1;
+    getClient(L)->inventoryAction(a);
+    reportInventoryChange(L, ref);
+    return 1;
+}
+
+// move(self, listname, i, count, dest_inv, dest_listname, somewhere/dest_i)
+int ClInvRef::l_move(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	ClInvRef *ref = checkobject(L, 1);
+	ClInvRef *dest_ref = checkobject(L, 5);
+	Inventory *inv = getinv(L, ref);
+	Inventory *dest_inv = getinv(L, dest_ref);
+	if((inv == NULL || dest_inv == NULL) || (inv == NULL && dest_inv == NULL))
+		return 0;
+
+    const InventoryLocation &loc = ref->m_loc;
+    const InventoryLocation &dest_loc = dest_ref->m_loc;
+
+	IMoveAction *a = new IMoveAction();
+
+    a->count = (u16)readParam<int>(L, 4);
+    a->from_inv = loc;
+    a->from_list = luaL_checkstring(L, 2);
+    a->from_i = luaL_checknumber(L, 3) - 1;
+    a->to_inv = dest_loc;
+	a->to_list =  luaL_checkstring(L, 6);
+
+	s16 dest_i = luaL_checknumber(L, 7) - 1;
+
+	if(dest_i == -1){
+        a->move_somewhere = true;
+	}else{
+        a->to_i = dest_i;
+	}
+
+    getClient(L)->inventoryAction(a);
+    reportInventoryChange(L, ref);
+    return 1;
+}
+
+// craft(self, count)
+int ClInvRef::l_craft(lua_State *L)
+{
+    NO_MAP_LOCK_REQUIRED;
+	ClInvRef *ref = checkobject(L, 1);
+	Inventory *inv = getinv(L, ref);
+	if(inv == NULL){
+		return 0;
+	}
+
+    const InventoryLocation &loc = ref->m_loc;
+	ICraftAction *a = new ICraftAction();
+
+    a->count = (u16)readParam<int>(L, 2);
+    a->craft_inv = loc;
+
+    getClient(L)->inventoryAction(a);
+    reportInventoryChange(L, ref);
+    return 1;
+}
+
+void ClInvRef::Register(lua_State *L)
+{
+	lua_newtable(L);
+	int methodtable = lua_gettop(L);
+	luaL_newmetatable(L, className);
+	int metatable = lua_gettop(L);
+
+	lua_pushliteral(L, "__metatable");
+	lua_pushvalue(L, methodtable);
+	lua_settable(L, metatable);  // hide metatable from Lua getmetatable()
+
+	lua_pushliteral(L, "__index");
+	lua_pushvalue(L, methodtable);
+	lua_settable(L, metatable);
+
+	lua_pushliteral(L, "__gc");
+	lua_pushcfunction(L, gc_object);
+	lua_settable(L, metatable);
+
+	lua_pop(L, 1);  // drop metatable
+
+	luaL_openlib(L, 0, methods, 0);  // fill methodtable
+	lua_pop(L, 1);  // drop methodtable
+
+	// Cannot be created from Lua
+	//lua_register(L, className, create_object);
+}
+
+const char ClInvRef::className[] = "ClInvRef";
+const luaL_Reg ClInvRef::methods[] = {
+	luamethod(ClInvRef, is_empty),
+	luamethod(ClInvRef, get_size),
+	luamethod(ClInvRef, set_size),
+	luamethod(ClInvRef, get_width),
+	luamethod(ClInvRef, set_width),
+	luamethod(ClInvRef, get_stack),
+	luamethod(ClInvRef, set_stack),
+	luamethod(ClInvRef, get_list),
+	luamethod(ClInvRef, set_list),
+	luamethod(ClInvRef, get_lists),
+	luamethod(ClInvRef, set_lists),
+	luamethod(ClInvRef, add_item),
+	luamethod(ClInvRef, room_for_item),
+	luamethod(ClInvRef, contains_item),
+	luamethod(ClInvRef, remove_item),
+	luamethod(ClInvRef, get_location),
+	luamethod(ClInvRef, move),
+	luamethod(ClInvRef, drop),
+	luamethod(ClInvRef, craft),
+	{0,0}
+};
+
+// get_inventory(location)
+int ModApiClInventory::l_get_inventory(lua_State *L)
+{
+	InventoryLocation loc;
+
+	lua_getfield(L, 1, "type");
+	std::string type = luaL_checkstring(L, -1);
+	lua_pop(L, 1);
+
+	if(type == "node"){
+		MAP_LOCK_REQUIRED;
+		lua_getfield(L, 1, "pos");
+		v3s16 pos = check_v3s16(L, -1);
+		loc.setNodeMeta(pos);
+
+		if (getClient(L)->getInventory(loc) != NULL)
+			ClInvRef::create(L, loc);
+		else
+			lua_pushnil(L);
+		return 1;
+	}
+
+	NO_MAP_LOCK_REQUIRED;
+	if (type == "player") {
+		lua_getfield(L, 1, "name");
+		loc.setPlayer(luaL_checkstring(L, -1));
+		lua_pop(L, 1);
+	} else if (type == "detached") {
+		lua_getfield(L, 1, "name");
+		loc.setDetached(luaL_checkstring(L, -1));
+		lua_pop(L, 1);
+	}
+
+	if (getClient(L)->getInventory(loc) != NULL)
+		ClInvRef::create(L, loc);
+	else
+		lua_pushnil(L);
+	return 1;
+
+}
+
+// create_detached_inventory_raw(name, [player_name])
+int ModApiClInventory::l_create_detached_inventory_raw(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	const char *name = luaL_checkstring(L, 1);
+	if (getClient(L)->createDetachedInventory(name) != NULL) {
+		InventoryLocation loc;
+		loc.setDetached(name);
+		ClInvRef::create(L, loc);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+// remove_detached_inventory_raw(name)
+int ModApiClInventory::l_remove_detached_inventory_raw(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	const std::string &name = luaL_checkstring(L, 1);
+	lua_pushboolean(L, getClient(L)->removeDetachedInventory(name));
+	return 1;
+}
+
+void ModApiClInventory::Initialize(lua_State *L, int top)
+{
+	API_FCT(create_detached_inventory_raw);
+	API_FCT(remove_detached_inventory_raw);
+	API_FCT(get_inventory);
+}
+
+#endif //Server

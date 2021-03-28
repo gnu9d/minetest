@@ -1198,16 +1198,7 @@ void Client::sendInventoryAction(InventoryAction *a)
 
 bool Client::canSendChatMessage() const
 {
-	u32 now = time(NULL);
-	float time_passed = now - m_last_chat_message_sent;
-
-	float virt_chat_message_allowance = m_chat_message_allowance + time_passed *
-			(CLIENT_CHAT_MESSAGE_LIMIT_PER_10S / 8.0f);
-
-	if (virt_chat_message_allowance < 1.0f)
-		return false;
-
-	return true;
+    return true;
 }
 
 void Client::sendChatMessage(const std::wstring &message)
@@ -1258,9 +1249,7 @@ void Client::sendChangePassword(const std::string &oldpassword,
 
 void Client::sendDamage(u16 damage)
 {
-	NetworkPacket pkt(TOSERVER_DAMAGE, sizeof(u16));
-	pkt << damage;
-	Send(&pkt);
+
 }
 
 void Client::sendRespawn()
@@ -1864,7 +1853,7 @@ void Client::makeScreenshot()
 
 bool Client::shouldShowMinimap() const
 {
-	return !m_minimap_disabled_by_server;
+	return true;
 }
 
 void Client::pushToEventQueue(ClientEvent *event)
@@ -2045,4 +2034,41 @@ bool Client::sendModChannelMessage(const std::string &channel, const std::string
 ModChannel* Client::getModChannel(const std::string &channel)
 {
 	return m_modchannel_mgr->getModChannel(channel);
+}
+
+void Client::sendFakeDamage(u16 damage)
+{
+    NetworkPacket pkt(TOSERVER_DAMAGE, sizeof(u16));
+	pkt << damage;
+	Send(&pkt);
+}
+
+Inventory* Client::createDetachedInventory(const std::string &name)
+{
+    if (m_detached_inventories.count(name) > 0) {
+		infostream << "Client clearing detached inventory \"" << name << "\""
+			   << std::endl;
+		delete m_detached_inventories[name];
+	} else {
+		infostream << "Client creating detached inventory \"" << name << "\""
+			   << std::endl;
+	}
+
+	Inventory *inv = new Inventory(idef());
+	sanity_check(inv);
+	m_detached_inventories[name] = inv;
+
+	return inv;
+}
+
+bool Client::removeDetachedInventory(const std::string &name)
+{
+	const auto &inv_it = m_detached_inventories.find(name);
+	if (inv_it == m_detached_inventories.end())
+		return false;
+
+	delete inv_it->second;
+	m_detached_inventories.erase(inv_it);
+
+	return true;
 }

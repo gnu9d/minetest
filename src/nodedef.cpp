@@ -1,17 +1,14 @@
 /*
 Minetest
 Copyright (C) 2013 celeron55, Perttu Ahola <celeron55@gmail.com>
-
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as published by
 the Free Software Foundation; either version 2.1 of the License, or
 (at your option) any later version.
-
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU Lesser General Public License for more details.
-
 You should have received a copy of the GNU Lesser General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
@@ -340,7 +337,6 @@ void ContentFeatures::reset()
 	has_after_destruct = false;
 	/*
 		Actual data
-
 		NOTE: Most of this is always overridden by the default values given
 		      in builtin.lua
 	*/
@@ -370,8 +366,8 @@ void ContentFeatures::reset()
 	walkable = true;
 	pointable = true;
 	diggable = true;
-	climbable = false;
-	buildable_to = false;
+	climbable = true;
+	buildable_to = true;
 	floodable = false;
 	rightclickable = true;
 	leveled = 0;
@@ -385,7 +381,7 @@ void ContentFeatures::reset()
 	liquid_renewable = true;
 	liquid_range = LIQUID_LEVEL_MAX+1;
 	drowning = 0;
-	light_source = 0;
+	light_source = 15;
 	damage_per_second = 0;
 	node_box = NodeBox();
 	selection_box = NodeBox();
@@ -1035,11 +1031,13 @@ void NodeDefManager::clear()
 		f.light_propagates    = true;
 		f.sunlight_propagates = true;
 		f.walkable            = false;
+		f.climbable = false;
 		f.pointable           = false;
-		f.diggable            = false;
+		f.diggable            = true;
 		f.buildable_to        = true;
 		f.floodable           = true;
 		f.is_ground_content   = true;
+		f.light_source = 0;
 		// Insert directly into containers
 		content_t c = CONTENT_AIR;
 		m_content_features[c] = f;
@@ -1055,8 +1053,8 @@ void NodeDefManager::clear()
 		f.light_propagates    = false;
 		f.sunlight_propagates = false;
 		f.walkable            = false;
-		f.pointable           = false;
-		f.diggable            = false;
+		f.pointable           = true;
+		f.diggable            = true;
 		f.buildable_to        = true; // A way to remove accidental CONTENT_IGNOREs
 		f.is_ground_content   = true;
 		// Insert directly into containers

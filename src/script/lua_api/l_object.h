@@ -21,12 +21,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "lua_api/l_base.h"
 #include "irrlichttypes.h"
-
+#include "client/content_cao.h"
 class ServerActiveObject;
 class LuaEntitySAO;
 class PlayerSAO;
 class RemotePlayer;
-
+void read_object_properties(lua_State *L, int index,
+		GenericCAO *cao, ObjectProperties *prop, IItemDefManager *idef);
 /*
 	ObjectRef
 */
@@ -376,3 +377,157 @@ private:
 	// set_minimap_modes(self, modes, wanted_mode)
 	static int l_set_minimap_modes(lua_State *L);
 };
+
+#ifndef SERVER
+
+class CAORef : public ModApiBase {
+public:
+	CAORef(GenericCAO *object);
+
+	~CAORef() = default;
+
+	// Creates an ObjectRef and leaves it on top of stack
+	// Not callable from Lua; all references are created on the C side.
+	static void create(lua_State *L, GenericCAO *object);
+
+	static void set_null(lua_State *L);
+
+	static void Register(lua_State *L);
+
+	static CAORef *checkobject(lua_State *L, int narg);
+
+	static GenericCAO* getobject(CAORef *ref);
+private:
+	GenericCAO *m_object = nullptr;
+	static const char className[];
+	static luaL_Reg methods[];
+
+
+	// Exported functions
+
+	// garbage collector
+	static int gc_object(lua_State *L);
+
+	// remove(self)
+	static int l_remove(lua_State *L);
+
+	// get_pos(self)
+	static int l_get_pos(lua_State *L);
+
+	// set_pos(self, pos)
+	static int l_set_pos(lua_State *L);
+
+
+	// punch(self, puncher, time_from_last_punch, tool_capabilities, dir)
+	static int l_punch(lua_State *L);
+
+	// right_click(self, clicker)
+	static int l_right_click(lua_State *L);
+
+	// set_hp(self, hp, reason)
+	static int l_set_hp(lua_State *L);
+
+	// get_hp(self)
+	static int l_get_hp(lua_State *L);
+
+	// set_armor_groups(self, groups)
+	static int l_set_armor_groups(lua_State *L);
+
+	// get_armor_groups(self)
+	static int l_get_armor_groups(lua_State *L);
+
+	// set_bone_position(self, bone, position, rotation)
+	static int l_set_bone_position(lua_State *L);
+
+	// get_bone_position(self, bone)
+	static int l_get_bone_position(lua_State *L);
+
+	// set_attach(self, parent, bone, position, rotation)
+	static int l_set_attach(lua_State *L);
+
+	// get_attach(self)
+	static int l_get_attach(lua_State *L);
+
+	// get_children(self)
+	static int l_get_children(lua_State *L);
+
+	// set_detach(self)
+	static int l_set_detach(lua_State *L);
+
+	// set_properties(self, properties)
+	static int l_set_properties(lua_State *L);
+
+	// get_properties(self)
+	static int l_get_properties(lua_State *L);
+
+	// is_player(self)
+	static int l_is_player(lua_State *L);
+
+	// is_LocalPlayer(self)
+	static int l_is_LocalPlayer(lua_State *L);
+
+	/* LuaEntitySAO-only */
+
+	// set_velocity(self, velocity)
+	static int l_set_velocity(lua_State *L);
+
+	// add_velocity(self, velocity)
+	static int l_add_velocity(lua_State *L);
+
+	// get_velocity(self)
+	static int l_get_velocity(lua_State *L);
+
+	// set_acceleration(self, acceleration)
+	static int l_set_acceleration(lua_State *L);
+
+	// get_acceleration(self)
+	static int l_get_acceleration(lua_State *L);
+
+	// set_rotation(self, rotation)
+	static int l_set_rotation(lua_State *L);
+
+	// get_rotation(self)
+	static int l_get_rotation(lua_State *L);
+
+	// set_yaw(self, yaw)
+	static int l_set_yaw(lua_State *L);
+
+	// get_yaw(self)
+	static int l_get_yaw(lua_State *L);
+
+	// set_texture_mod(self, mod)
+	static int l_set_texture_mod(lua_State *L);
+
+	// l_get_texture_mod(self)
+	static int l_get_texture_mod(lua_State *L);
+
+	// DEPRECATED
+	// get_entity_name(self)
+	static int l_get_entity_name(lua_State *L);
+
+	static int l_set_entity_name(lua_State *L);
+
+	// get_luaentity(self)
+//	static int l_get_luaentity(lua_State *L);
+
+	/* Player-only */
+
+	// DEPRECATED
+	// get_look_yaw(self)
+	static int l_get_look_yaw(lua_State *L);
+
+	// get_look_yaw2(self)
+	static int l_get_look_horizontal(lua_State *L);
+
+	// set_nametag_attributes(self, attributes)
+	static int l_set_nametag_attributes(lua_State *L);
+
+	// get_nametag_attributes(self)
+	static int l_get_nametag_attributes(lua_State *L);
+
+	static int l_use_on(lua_State *L);
+
+	static int l_ignore_props(lua_State *L);
+
+};
+#endif //Server

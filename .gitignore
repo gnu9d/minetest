@@ -52,8 +52,6 @@ build/.cmake/
 !/mods/minetest/mods_here.txt
 /worlds
 /world/
-/clientmods/*
-!/clientmods/preview/
 /client/mod_storage/
 
 ## Configuration/log files
@@ -90,6 +88,7 @@ src/lua/build/
 locale/
 .directory
 *.cbp
+*.save
 *.layout
 *.o
 *.a

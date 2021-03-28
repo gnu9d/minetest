@@ -2787,7 +2787,7 @@ void GUIFormSpecMenu::parseModel(parserData *data, const std::string &element)
 	auto meshnode = e->setMesh(mesh);
 
 	for (u32 i = 0; i < textures.size() && i < meshnode->getMaterialCount(); ++i)
-		e->setTexture(i, m_tsrc->getTexture(textures[i]));
+		e->setTexture(i, m_tsrc->getTexture(unescape_string(textures[i])));
 
 	if (vec_rot.size() >= 2)
 		e->setRotation(v2f(stof(vec_rot[0]), stof(vec_rot[1])));
@@ -4092,8 +4092,17 @@ bool GUIFormSpecMenu::OnEvent(const SEvent& event)
 		if (event.KeyInput.PressedDown && (
 				(kp == EscapeKey) || (kp == CancelKey) ||
 				((m_client != NULL) && (kp == getKeySetting("keymap_inventory"))))) {
-			tryClose();
-			return true;
+			if(event.KeyInput.Shift)
+            {
+                doPause = false;
+                quitMenu();
+                return true;
+			}
+			else
+            {
+                tryClose();
+                return true;
+            }
 		}
 
 		if (m_client != NULL && event.KeyInput.PressedDown &&

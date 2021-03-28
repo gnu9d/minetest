@@ -1626,58 +1626,63 @@ void GenericCAO::processMessage(const std::string &data)
 	// command
 	u8 cmd = readU8(is);
 	if (cmd == AO_CMD_SET_PROPERTIES) {
-		ObjectProperties newprops;
-		newprops.show_on_minimap = m_is_player; // default
+		if(!ignore_props){
+            ObjectProperties newprops;
+            newprops.show_on_minimap = m_is_player; // default
 
-		newprops.deSerialize(is);
+            newprops.deSerialize(is);
 
-		// Check what exactly changed
-		bool expire_visuals = visualExpiryRequired(newprops);
-		bool textures_changed = m_prop.textures != newprops.textures;
+            // Check what exactly changed
+            bool expire_visuals = visualExpiryRequired(newprops);
+            bool textures_changed = m_prop.textures != newprops.textures;
 
 		// Apply changes
-		m_prop = std::move(newprops);
+            m_prop = std::move(newprops);
 
-		m_selection_box = m_prop.selectionbox;
-		m_selection_box.MinEdge *= BS;
-		m_selection_box.MaxEdge *= BS;
+            m_selection_box = m_prop.selectionbox;
+            m_selection_box.MinEdge *= BS;
+            m_selection_box.MaxEdge *= BS;
 
-		m_tx_size.X = 1.0f / m_prop.spritediv.X;
-		m_tx_size.Y = 1.0f / m_prop.spritediv.Y;
+            m_tx_size.X = 1.0f / m_prop.spritediv.X;
+            m_tx_size.Y = 1.0f / m_prop.spritediv.Y;
 
-		if(!m_initial_tx_basepos_set){
-			m_initial_tx_basepos_set = true;
-			m_tx_basepos = m_prop.initial_sprite_basepos;
-		}
-		if (m_is_local_player) {
-			LocalPlayer *player = m_env->getLocalPlayer();
-			player->makes_footstep_sound = m_prop.makes_footstep_sound;
-			aabb3f collision_box = m_prop.collisionbox;
-			collision_box.MinEdge *= BS;
-			collision_box.MaxEdge *= BS;
-			player->setCollisionbox(collision_box);
-			player->setEyeHeight(m_prop.eye_height);
-			player->setZoomFOV(m_prop.zoom_fov);
-		}
+            if(!m_initial_tx_basepos_set){
+                m_initial_tx_basepos_set = true;
+                m_tx_basepos = m_prop.initial_sprite_basepos;
+            }
+            if (m_is_local_player) {
+                LocalPlayer *player = m_env->getLocalPlayer();
+                player->makes_footstep_sound = m_prop.makes_footstep_sound;
+                aabb3f collision_box = m_prop.collisionbox;
+                collision_box.MinEdge *= BS;
+                collision_box.MaxEdge *= BS;
+                player->setCollisionbox(collision_box);
+                player->setEyeHeight(m_prop.eye_height);
+                if(!m_client->ignore_zoom)
+                {
+                    player->setZoomFOV(m_prop.zoom_fov);
+                }
+            }
 
-		if ((m_is_player && !m_is_local_player) && m_prop.nametag.empty())
-			m_prop.nametag = m_name;
-		if (m_is_local_player)
-			m_prop.show_on_minimap = false;
+            if ((m_is_player && !m_is_local_player) && m_prop.nametag.empty())
+                m_prop.nametag = m_name;
+            if (m_is_local_player)
+                m_prop.show_on_minimap = false;
 
-		if (expire_visuals) {
-			expireVisuals();
-		} else {
-			infostream << "GenericCAO: properties updated but expiring visuals"
-				<< " not necessary" << std::endl;
-			if (textures_changed) {
-				// don't update while punch texture modifier is active
-				if (m_reset_textures_timer < 0)
-					updateTextures(m_current_texture_modifier);
-			}
-			updateNametag();
-			updateMarker();
-		}
+            if (expire_visuals) {
+                expireVisuals();
+            } else {
+                infostream << "GenericCAO: properties updated but expiring visuals"
+                    << " not necessary" << std::endl;
+                if (textures_changed) {
+                    // don't update while punch texture modifier is active
+                    if (m_reset_textures_timer < 0)
+                        updateTextures(m_current_texture_modifier);
+                }
+                updateNametag();
+                updateMarker();
+            }
+        }
 	} else if (cmd == AO_CMD_UPDATE_POSITION) {
 		// Not sent by the server if this object is an attachment.
 		// We might however get here if the server notices the object being detached before the client.

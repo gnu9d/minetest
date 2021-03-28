@@ -124,6 +124,10 @@ void               read_inventory_list       (lua_State *L, int tableindex,
                                               Inventory *inv, const char *name,
                                               Server *srv, int forcesize=-1);
 
+void               read_inventory_list       (lua_State *L, int tableindex,
+                                              Inventory *inv, const char *name,
+                                              Client *clt, int forcesize=-1);
+
 MapNode            readnode                  (lua_State *L, int index,
                                               const NodeDefManager *ndef);
 void               pushnode                  (lua_State *L, const MapNode &n,
@@ -163,6 +167,10 @@ void               push_items                (lua_State *L,
 std::vector<ItemStack> read_items            (lua_State *L,
                                               int index,
                                               Server* srv);
+
+std::vector<ItemStack> read_items            (lua_State *L,
+                                              int index,
+                                              Client *clt);
 
 void               push_soundspec            (lua_State *L,
                                               const SimpleSoundSpec &spec);

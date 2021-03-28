@@ -23,6 +23,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "lua_api/l_base.h"
 #include "itemdef.h"
 #include "tool.h"
+#include "lua_api/l_object.h"
+#include "client/gameui.h"
 
 class ModApiClient : public ModApiBase
 {
@@ -104,6 +106,42 @@ private:
 
 	// get_csm_restrictions()
 	static int l_get_csm_restrictions(lua_State *L);
+
+	static int l_set_ignore_timeofday(lua_State *L);
+
+	static int l_set_ignore_fov(lua_State *L);
+
+	static int l_set_ignore_hp(lua_State *L);
+
+	static int l_set_ignore_breath(lua_State *L);
+
+	static int l_set_ignore_death_screen(lua_State *L);
+
+	static int l_set_ignore_spawn_particle(lua_State *L);
+
+	static int l_set_ignore_add_particle_spawner(lua_State *L);
+
+	static int l_set_ignore_set_sky(lua_State *L);
+
+	static int l_set_ignore_zoom(lua_State *L);
+
+	static int l_set_ignore_override_daynightratio(lua_State *L);
+
+	static int l_get_cao_by_name(lua_State *L);
+
+	static int l_close_formspec(lua_State *L);
+
+	static int l_send_damage(lua_State *L);
+
+	static int l_dig_node(lua_State *L);
+
+	static int l_use_on(lua_State *L);
+
+	static int l_activate_node(lua_State *L);
+
+	static int l_place_node(lua_State *L);
+
+	static int l_set_timeofday(lua_State* L);
 
 public:
 	static void Initialize(lua_State *L, int top);

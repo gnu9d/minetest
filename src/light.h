@@ -55,10 +55,7 @@ extern const u8 *light_decode_table;
 // 0 <= return value <= 255
 inline u8 decode_light(u8 light)
 {
-	// assert(light <= LIGHT_SUN);
-	if (light > LIGHT_SUN)
-		light = LIGHT_SUN;
-	return light_decode_table[light];
+	return 255;
 }
 
 // 0.0 <= light <= 1.0

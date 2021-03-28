@@ -140,6 +140,8 @@ public:
 
 	~GenericCAO();
 
+	bool ignore_props = false;
+
 	static ClientActiveObject* create(Client *client, ClientEnvironment *env)
 	{
 		return new GenericCAO(client, env);
@@ -169,7 +171,44 @@ public:
 	{
 		pos_translator.val_current = pos;
 	}
-
+    void setHp(u16 hp)
+    {
+        m_hp = hp;
+    }
+    u16 getHp()
+    {
+        return m_hp;
+    }
+    void setArmorGroups(const ItemGroupList &armor_groups)
+    {
+        m_armor_groups = armor_groups;
+    }
+    ItemGroupList &getArmorGroups()
+    {
+        return m_armor_groups;
+    }
+    void setBonePosition(const std::string &bone, v3f position, v3f rotation)
+    {
+        m_bone_position[bone] = core::vector2d<v3f>(position, rotation);
+    }
+    void getBonePosition(const std::string &bone, v3f *position, v3f *rotation)
+    {
+        *position = m_bone_position[bone].X;
+        *rotation = m_bone_position[bone].Y;
+    }
+    ObjectProperties *accessObjectProperties()
+    {
+        return &m_prop;
+    }
+    void addVelocity(v3f velocity) { m_velocity += velocity; }
+    void setVelocity(v3f vel)
+    {
+        m_velocity = vel;
+    }
+	inline const v3f getVelocity() const
+	{
+		return m_velocity;
+	}
 	inline const v3f &getRotation() const { return m_rotation; }
 
 	const bool isImmortal();
@@ -207,7 +246,10 @@ public:
 	{
 		return m_is_local_player;
 	}
-
+    inline bool is_player() const
+    {
+        return m_is_player;
+    }
 	inline bool isVisible() const
 	{
 		return m_is_visible;
@@ -224,6 +266,36 @@ public:
 	void getAttachment(int *parent_id, std::string *bone, v3f *position,
 			v3f *rotation, bool *force_visible) const;
 	void clearChildAttachments();
+    inline const v3f getAcceleration() const
+	{
+		return m_acceleration;
+	}
+	void setAcceleration(v3f accel)
+	{
+		m_acceleration = accel;
+	}
+	void setRotation(v3f rotat)
+	{
+		m_rotation = rotat;
+	}
+	inline std::string getTextureMod()
+	{
+	    return m_current_texture_modifier;
+	}
+	inline std::string getName()
+	{
+	    return m_name;
+	}
+	void setName(std::string name)
+	{
+	    m_name = name;
+	}
+	v3f getRadRotation() { return m_rotation * core::DEGTORAD; }
+	f32 getRadYawDep() const { return (m_rotation.Y + 90.) * core::DEGTORAD; }
+	void setTextureMod(std::string mod)
+	{
+	    m_current_texture_modifier = mod;
+	}
 	void clearParentAttachment();
 	void addAttachmentChild(int child_id);
 	void removeAttachmentChild(int child_id);

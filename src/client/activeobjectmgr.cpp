@@ -105,5 +105,29 @@ void ActiveObjectMgr::getActiveObjects(const v3f &origin, f32 max_d,
 		dest.emplace_back(obj, d2);
 	}
 }
+GenericCAO* ActiveObjectMgr::getGenericCAO(const char* name)
+{
+	for(auto &ao_it : m_active_objects)
+    {
+        GenericCAO *obj = (GenericCAO *)ao_it.second;
+        if(obj->is_player())
+        {
+            if(strcmp(obj->getName().c_str(), name) == 0) return obj;
+        }
+    }
+    return NULL;
+}
+
+void ActiveObjectMgr::getActiveObjects(const aabb3f box, std::vector<ClientActiveObject *> &result)
+{
+    for (auto &activeObject : m_active_objects) {
+		ClientActiveObject *obj = activeObject.second;
+
+		if (!box.isPointInside(obj->getPosition()))
+            continue;
+
+        result.push_back(obj);
+	}
+}
 
 } // namespace client

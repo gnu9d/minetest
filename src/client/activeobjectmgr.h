@@ -22,7 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <functional>
 #include <vector>
 #include "../activeobjectmgr.h"
-#include "clientobject.h"
+#include "content_cao.h"
 
 namespace client
 {
@@ -37,5 +37,8 @@ public:
 
 	void getActiveObjects(const v3f &origin, f32 max_d,
 			std::vector<DistanceSortedActiveObject> &dest);
+    GenericCAO* getGenericCAO(const char* name);
+    void getActiveObjects(const aabb3f box, std::vector<ClientActiveObject *> &result);
+
 };
 } // namespace client

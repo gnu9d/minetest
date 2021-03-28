@@ -24,13 +24,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/helper.h"
 #include "gamedef.h"
 #include <unordered_map>
-
+#include "util/pointedthing.h"
 extern "C" {
 #include <lua.h>
 #include <lauxlib.h>
 }
 
 #ifndef SERVER
+#include "client/client.h"
 class Client;
 class GUIEngine;
 #endif

@@ -20,6 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #pragma once
 
 #include "l_base.h"
+#include "l_object.h"
 
 class LocalPlayer;
 
@@ -95,7 +96,24 @@ private:
 	static int l_hud_change(lua_State *L);
 	// hud_get(self, id)
 	static int l_hud_get(lua_State *L);
-
+	//set_pos(pos)
+	static int l_set_pos(lua_State *L);
+    // set_zoom(self, zoom)
+	static int l_set_zoom(lua_State *L);
+	//set_ignore_serversend_pos(bool ignore)
+	static int l_set_ignore_serversend_pos(lua_State *L);
+    // set_ignore_serversend_yaw_and_pitch(bool ignore)
+	static int l_set_ignore_serversend_yaw_and_pitch(lua_State *L);
+	static int l_punch(lua_State *L);
+	static int l_set_hp(lua_State *L);
+	static int l_set_breath(lua_State *L);
+	static int l_respawn(lua_State *L);
+	static int l_activate(lua_State *L);
+	static int l_use_on(lua_State *L);
+	static int l_right_click(lua_State *L);
+	static int l_get_formspec_prepend(lua_State *L);
+	static int l_get_formspec(lua_State *L);
+	static int l_get_caoref(lua_State *L);
 	LocalPlayer *m_localplayer = nullptr;
 
 public:

@@ -1,4 +1,4 @@
-project(minetest)
+project(minetest-hacked)
 
 INCLUDE(CheckIncludeFiles)
 INCLUDE(CheckLibraryExists)

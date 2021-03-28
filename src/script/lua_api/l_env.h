@@ -22,7 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "lua_api/l_base.h"
 #include "serverenvironment.h"
 #include "raycast.h"
-
+#include "lua_api/l_object.h"
 class ModApiEnvMod : public ModApiBase {
 private:
 	// set_node(pos, node)
@@ -114,7 +114,7 @@ private:
 
 	// get_objects_inside_radius(pos, radius)
 	static int l_get_objects_inside_radius(lua_State *L);
-	
+
 	// get_objects_in_area(pos, minp, maxp)
 	static int l_get_objects_in_area(lua_State *L);
 
@@ -197,6 +197,11 @@ private:
 
 	// Get a string translated server side
 	static int l_get_translated_string(lua_State * L);
+
+	static int l_get_cao_inside_radius(lua_State *L);
+
+	static int l_get_cao_in_area(lua_State *L);
+
 
 	/* Helpers */
 

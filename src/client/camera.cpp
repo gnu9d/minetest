@@ -696,12 +696,6 @@ void Camera::drawNametags()
 	v2u32 screensize = driver->getScreenSize();
 
 	for (const Nametag *nametag : m_nametags) {
-		if (nametag->nametag_color.getAlpha() == 0) {
-			// Enforce hiding nametag,
-			// because if freetype is enabled, a grey
-			// shadow can remain.
-			continue;
-		}
 		v3f pos = nametag->parent_node->getAbsolutePosition() + nametag->nametag_pos * BS;
 		f32 transformed_pos[4] = { pos.X, pos.Y, pos.Z, 1.0f };
 		trans.multiplyWith1x4Matrix(transformed_pos);
@@ -727,7 +721,7 @@ void Camera::drawNametags()
 					? video::SColor(50, 50, 50, 50)
 					: video::SColor(50, 255, 255, 255);
 			driver->draw2DRectangle(backgroundColor, bg_size + screen_pos);
-
+            textColor.setAlpha(255);
 			font->draw(
 				translate_string(utf8_to_wide(nametag->nametag_text)).c_str(),
 				size + screen_pos, textColor);

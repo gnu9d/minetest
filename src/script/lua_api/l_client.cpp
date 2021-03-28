@@ -414,6 +414,141 @@ int ModApiClient::l_get_csm_restrictions(lua_State *L)
 	return 1;
 }
 
+int ModApiClient::l_set_ignore_add_particle_spawner(lua_State *L)
+{
+	getClient(L)->ignore_add_particle_spawner = readParam<bool>(L, 1);
+	return 1;
+}
+
+int ModApiClient::l_set_ignore_breath(lua_State *L)
+{
+	getClient(L)->ignore_breath = readParam<bool>(L, 1);
+	return 1;
+}
+
+int ModApiClient::l_set_ignore_zoom(lua_State *L)
+{
+	getClient(L)->ignore_zoom = readParam<bool>(L, 1);
+	return 1;
+}
+
+int ModApiClient::l_set_ignore_death_screen(lua_State *L)
+{
+	getClient(L)->ignore_death_screen = readParam<bool>(L, 1);
+	return 1;
+}
+
+int ModApiClient::l_set_ignore_fov(lua_State *L)
+{
+	getClient(L)->ignore_fov = readParam<bool>(L, 1);
+	return 1;
+}
+
+int ModApiClient::l_set_ignore_hp(lua_State *L)
+{
+	getClient(L)->ignore_hp = readParam<bool>(L, 1);
+	return 1;
+}
+
+int ModApiClient::l_set_ignore_override_daynightratio(lua_State *L)
+{
+	getClient(L)->ignore_override_daynightratio = readParam<bool>(L, 1);
+	return 1;
+}
+
+int ModApiClient::l_set_ignore_set_sky(lua_State *L)
+{
+	getClient(L)->ignore_set_sky = readParam<bool>(L, 1);
+	return 1;
+}
+
+int ModApiClient::l_set_ignore_spawn_particle(lua_State *L)
+{
+	getClient(L)->ignore_spawn_particle = readParam<bool>(L, 1);
+	return 1;
+}
+
+int ModApiClient::l_set_ignore_timeofday(lua_State* L)
+{
+	getClient(L)->ignore_timeofday = readParam<bool>(L, 1);
+	return 1;
+}
+int ModApiClient::l_get_cao_by_name(lua_State* L)
+{
+    const char *name = luaL_checkstring(L, 1);
+    GenericCAO *cao = getClient(L)->getEnv().m_ao_manager.getGenericCAO(name);
+    if (cao != NULL)
+    {
+        CAORef::create(L, cao);
+    }
+    else
+    {
+        lua_pushnil(L);
+    }
+    return 1;
+}
+
+int ModApiClient::l_close_formspec(lua_State* L)
+{
+    auto formspec = getClient(L)->getGameUI()->getFormspecGUI();
+    if(formspec){
+        formspec->quitMenu();
+    }
+    else{
+        return 0;
+    }
+    return 1;
+}
+
+int ModApiClient::l_send_damage(lua_State* L)
+{
+    getClient(L)->sendFakeDamage((u16)readParam<float>(L, 1));
+    return 1;
+}
+
+int ModApiClient::l_dig_node(lua_State* L)
+{
+    Client *clt = getClient(L);
+	v3s16 pos = read_v3s16(L, 1);
+	PointedThing node(pos, pos, pos, v3f(0, 0, 0), pos, 0, 0);
+	clt->interact(INTERACT_START_DIGGING, node);
+	clt->interact(INTERACT_DIGGING_COMPLETED, node);
+    return 1;
+}
+int ModApiClient::l_place_node(lua_State* L)
+{
+	v3s16 pos = read_v3s16(L, 1);
+	PointedThing node(pos, pos, pos, v3f(0, 0, 0), pos, 0, 0);
+	getClient(L)->interact(INTERACT_PLACE, node);
+    return 1;
+}
+int ModApiClient::l_activate_node(lua_State* L)
+{
+	v3s16 pos = read_v3s16(L, 1);
+	PointedThing node(pos, pos, pos, v3f(0, 0, 0), pos, 0, 0);
+	getClient(L)->interact(INTERACT_ACTIVATE, node);
+    return 1;
+}
+int ModApiClient::l_use_on(lua_State* L)
+{
+	v3s16 pos = read_v3s16(L, 1);
+	PointedThing node(pos, pos, pos, v3f(0, 0, 0), pos, 0, 0);
+	getClient(L)->interact(INTERACT_USE, node);
+    return 1;
+}
+
+int ModApiClient::l_set_timeofday(lua_State *L)
+{
+
+	float timeofday_f = readParam<float>(L, 1);
+	luaL_argcheck(L, timeofday_f >= 0.0f && timeofday_f <= 1.0f, 1,
+		"value must be between 0 and 1");
+	int timeofday_mh = (int)(timeofday_f * 24000.0f);
+	getClient(L)->getEnv().setTimeOfDay(timeofday_mh);
+	return 0;
+
+}
+
 void ModApiClient::Initialize(lua_State *L, int top)
 {
 	API_FCT(get_current_modname);
@@ -441,4 +576,22 @@ void ModApiClient::Initialize(lua_State *L, int top)
 	API_FCT(get_builtin_path);
 	API_FCT(get_language);
 	API_FCT(get_csm_restrictions);
+	API_FCT(set_ignore_timeofday);
+	API_FCT(set_ignore_fov);
+	API_FCT(set_ignore_hp);
+	API_FCT(set_ignore_breath);
+	API_FCT(set_ignore_death_screen);
+	API_FCT(set_ignore_spawn_particle);
+	API_FCT(set_ignore_add_particle_spawner);
+	API_FCT(set_ignore_set_sky);
+	API_FCT(set_ignore_override_daynightratio);
+	API_FCT(set_ignore_zoom);
+	API_FCT(get_cao_by_name);
+	API_FCT(close_formspec);
+	API_FCT(activate_node);
+	API_FCT(use_on);
+	API_FCT(dig_node);
+	API_FCT(set_timeofday);
+	API_FCT(place_node);
+	API_FCT(send_damage);
 }

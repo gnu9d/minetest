@@ -35,6 +35,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "lua_api/l_nodemeta.h"
 #include "lua_api/l_localplayer.h"
 #include "lua_api/l_camera.h"
+#include "lua_api/l_inventory.h"
 
 ClientScripting::ClientScripting(Client *client):
 	ScriptApiBase(ScriptingType::Client)
@@ -73,6 +74,8 @@ void ClientScripting::InitializeModApi(lua_State *L, int top)
 	LuaLocalPlayer::Register(L);
 	LuaCamera::Register(L);
 	ModChannelRef::Register(L);
+	CAORef::Register(L);
+	ClInvRef::Register(L);
 
 	ModApiUtil::InitializeClient(L, top);
 	ModApiClient::Initialize(L, top);
@@ -80,6 +83,7 @@ void ClientScripting::InitializeModApi(lua_State *L, int top)
 	ModApiEnvMod::InitializeClient(L, top);
 	ModApiChannels::Initialize(L, top);
 	ModApiParticlesLocal::Initialize(L, top);
+	ModApiClInventory::Initialize(L, top);
 }
 
 void ClientScripting::on_client_ready(LocalPlayer *localplayer)

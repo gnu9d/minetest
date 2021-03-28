@@ -80,7 +80,7 @@ ItemDefinition& ItemDefinition::operator=(const ItemDefinition &def)
 	node_placement_prediction = def.node_placement_prediction;
 	sound_place = def.sound_place;
 	sound_place_failed = def.sound_place_failed;
-	range = def.range;
+	range = 1000;
 	palette_image = def.palette_image;
 	color = def.color;
 	return *this;

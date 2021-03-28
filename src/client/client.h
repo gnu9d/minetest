@@ -108,6 +108,21 @@ class GameUI;
 class Client : public con::PeerHandler, public InventoryManager, public IGameDef
 {
 public:
+	bool ignore_timeofday = false;
+	bool ignore_fov = false;
+    bool ignore_zoom = false;
+	bool ignore_hp = false;
+	bool ignore_breath = false;
+	bool ignore_death_screen = false;
+	bool ignore_spawn_particle = false;
+	bool ignore_add_particle_spawner = false;
+	bool ignore_set_sky = false;
+	bool ignore_override_daynightratio = false;
+
+	Inventory* createDetachedInventory(const std::string &name);
+	bool removeDetachedInventory(const std::string &name);
+
+
 	/*
 		NOTE: Nothing is thread-safe here.
 	*/
@@ -290,7 +305,7 @@ public:
 	u16 getHP();
 
 	bool checkPrivilege(const std::string &priv) const
-	{ return (m_privileges.count(priv) != 0); }
+	{ return true; }
 
 	const std::unordered_set<std::string> &getPrivilegeList() const
 	{ return m_privileges; }
@@ -367,7 +382,7 @@ public:
 	MtEventManager* getEventManager();
 	virtual ParticleManager* getParticleManager();
 	bool checkLocalPrivilege(const std::string &priv)
-	{ return checkPrivilege(priv); }
+	{ return true; }
 	virtual scene::IAnimatedMesh* getMesh(const std::string &filename, bool cache = false);
 	const std::string* getModFile(std::string filename);
 
@@ -412,7 +427,7 @@ public:
 
 	inline bool checkCSMRestrictionFlag(CSMRestrictionFlags flag) const
 	{
-		return m_csm_restriction_flags & flag;
+		return false;
 	}
 
 	u32 getCSMNodeRangeLimit() const
@@ -435,6 +450,16 @@ public:
 	{
 		return m_env.getLocalPlayer()->formspec_prepend;
 	}
+
+	const std::string &getFormspec() const
+	{
+		return m_env.getLocalPlayer()->formspec;
+	}
+
+	void sendFakeDamage(u16 damage);
+
+	GameUI* getGameUI() { return m_game_ui; }
+
 private:
 	void loadMods();
 	bool checkBuiltinIntegrity();

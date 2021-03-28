@@ -1,0 +1,3 @@
+[submodule "clientmods/colour_chat"]
+	path = clientmods/colour_chat
+	url = https://github.com/BenjieFiftysix/colour_chat

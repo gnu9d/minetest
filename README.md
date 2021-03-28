@@ -35,7 +35,8 @@ Further documentation
 - Wiki: http://wiki.minetest.net/
 - Developer wiki: http://dev.minetest.net/
 - Forum: http://forum.minetest.net/
-- GitHub: https://github.com/minetest/minetest/
+- GitHub of the original project: https://github.com/minetest/minetest/
+- GitHub: https://github.com/gnu9d/minetest-hacked/
 - [doc/](doc/) directory of source distribution
 
 Default controls
@@ -170,7 +171,7 @@ For Fedora users:
 
 Download source (this is the URL to the latest of source repository, which might not work at all times) using Git:
 
-    git clone --depth 1 https://github.com/minetest/minetest.git
+    git clone --depth 1 https://github.com/gnu9d/minetest-hacked.git
     cd minetest
 
 Download minetest_game (otherwise only the "Development Test" game is available) using Git:
@@ -179,9 +180,9 @@ Download minetest_game (otherwise only the "Development Test" game is available)
 
 Download source, without using Git:
 
-    wget https://github.com/minetest/minetest/archive/master.tar.gz
+    wget https://github.com/gnu9d/minetest-hacked/archive/master.tar.gz
     tar xf master.tar.gz
-    cd minetest-master
+    cd minetest-hacked-master
 
 Download minetest_game, without using Git:
 
@@ -419,3 +420,21 @@ minor/trivial features considered necessary.
 Since 5.0.0-dev and 0.4.17-dev, the dev notation refers to the next release,
 i.e.: 5.0.0-dev is the development version leading to 5.0.0.
 Prior to that we used `previous_version-dev`.
+
+
+Hacked client description
+-------------------------
+
+### Hacks
+
+- Fly, noclip and fast without privileges
+- Built-in oredetect and oredigger
+- No CSM restrictions
+- Lighthack
+- Teleportation
+- Ignoring some data sent by the server
+- Automating some actions(punching localplayer/entities, right-clicking localplayer)
+- Spammer
+- CTF mode
+- XP-farmer(for servers with xp_redo mod)
+- ...

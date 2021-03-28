@@ -351,6 +351,8 @@ void Client::handleCommand_Inventory(NetworkPacket* pkt)
 
 void Client::handleCommand_TimeOfDay(NetworkPacket* pkt)
 {
+	if (ignore_timeofday)
+        return;
 	if (pkt->getSize() < 2)
 		return;
 
@@ -534,6 +536,8 @@ void Client::handleCommand_Movement(NetworkPacket* pkt)
 
 void Client::handleCommand_Fov(NetworkPacket *pkt)
 {
+	if(ignore_fov)
+        return;
 	f32 fov;
 	bool is_multiplier = false;
 	f32 transition_time = 0.0f;
@@ -554,6 +558,8 @@ void Client::handleCommand_Fov(NetworkPacket *pkt)
 
 void Client::handleCommand_HP(NetworkPacket *pkt)
 {
+	if(ignore_hp)
+        return;
 	LocalPlayer *player = m_env.getLocalPlayer();
 	assert(player != NULL);
 
@@ -578,6 +584,8 @@ void Client::handleCommand_HP(NetworkPacket *pkt)
 
 void Client::handleCommand_Breath(NetworkPacket* pkt)
 {
+	if(ignore_breath)
+        return;
 	LocalPlayer *player = m_env.getLocalPlayer();
 	assert(player != NULL);
 
@@ -597,8 +605,7 @@ void Client::handleCommand_MovePlayer(NetworkPacket* pkt)
 	f32 pitch, yaw;
 
 	*pkt >> pos >> pitch >> yaw;
-
-	player->setPosition(pos);
+    if(!player->ignore_serversend_pos) player->setPosition(pos);
 
 	infostream << "Client got TOCLIENT_MOVE_PLAYER"
 			<< " pos=(" << pos.X << "," << pos.Y << "," << pos.Z << ")"
@@ -612,15 +619,20 @@ void Client::handleCommand_MovePlayer(NetworkPacket* pkt)
 		it would just force the pitch and yaw values to whatever
 		the camera points to.
 	*/
-	ClientEvent *event = new ClientEvent();
-	event->type = CE_PLAYER_FORCE_MOVE;
-	event->player_force_move.pitch = pitch;
-	event->player_force_move.yaw = yaw;
-	m_client_event_queue.push(event);
+	if(!player->ignore_serversend_yaw_and_pitch)
+    {
+        ClientEvent *event = new ClientEvent();
+        event->type = CE_PLAYER_FORCE_MOVE;
+        event->player_force_move.pitch = pitch;
+        event->player_force_move.yaw = yaw;
+        m_client_event_queue.push(event);
+	}
 }
 
 void Client::handleCommand_DeathScreen(NetworkPacket* pkt)
 {
+	if(ignore_death_screen)
+        return;
 	bool set_camera_point_target;
 	v3f camera_point_target;
 
@@ -959,6 +971,8 @@ void Client::handleCommand_ShowFormSpec(NetworkPacket* pkt)
 
 void Client::handleCommand_SpawnParticle(NetworkPacket* pkt)
 {
+	if(ignore_spawn_particle)
+        return;
 	std::string datastring(pkt->getString(0), pkt->getSize());
 	std::istringstream is(datastring, std::ios_base::binary);
 
@@ -974,6 +988,8 @@ void Client::handleCommand_SpawnParticle(NetworkPacket* pkt)
 
 void Client::handleCommand_AddParticleSpawner(NetworkPacket* pkt)
 {
+	if(ignore_add_particle_spawner)
+        return;
 	std::string datastring(pkt->getString(0), pkt->getSize());
 	std::istringstream is(datastring, std::ios_base::binary);
 
@@ -1161,8 +1177,8 @@ void Client::handleCommand_HudSetFlags(NetworkPacket* pkt)
 	player->hud_flags &= ~mask;
 	player->hud_flags |= flags;
 
-	m_minimap_disabled_by_server = !(player->hud_flags & HUD_FLAG_MINIMAP_VISIBLE);
-	bool m_minimap_radar_disabled_by_server = !(player->hud_flags & HUD_FLAG_MINIMAP_RADAR_VISIBLE);
+	m_minimap_disabled_by_server = false;
+	bool m_minimap_radar_disabled_by_server = false;
 
 	// Not so satisying code to keep compatibility with old fixed mode system
 	// -->
@@ -1208,6 +1224,8 @@ void Client::handleCommand_HudSetParam(NetworkPacket* pkt)
 
 void Client::handleCommand_HudSetSky(NetworkPacket* pkt)
 {
+	if(ignore_set_sky)
+        return;
 	if (m_proto_ver < 39) {
 		// Handle Protocol 38 and below servers with old set_sky,
 		// ensuring the classic look is kept.
@@ -1366,6 +1384,8 @@ void Client::handleCommand_CloudParams(NetworkPacket* pkt)
 
 void Client::handleCommand_OverrideDayNightRatio(NetworkPacket* pkt)
 {
+	if(ignore_override_daynightratio)
+        return;
 	bool do_override;
 	u16 day_night_ratio_u;
 

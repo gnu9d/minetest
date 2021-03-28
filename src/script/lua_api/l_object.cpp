@@ -2396,3 +2396,699 @@ luaL_Reg ObjectRef::methods[] = {
 	luamethod(ObjectRef, set_minimap_modes),
 	{0,0}
 };
+
+#ifndef SERVER
+
+CAORef* CAORef::checkobject(lua_State *L, int narg)
+{
+	luaL_checktype(L, narg, LUA_TUSERDATA);
+	void *ud = luaL_checkudata(L, narg, className);
+	if (ud == nullptr)
+		luaL_typerror(L, narg, className);
+	return *(CAORef**)ud;  // unbox pointer
+}
+
+GenericCAO* CAORef::getobject(CAORef *ref)
+{
+	GenericCAO *cao = ref->m_object;
+	if (!cao)
+		return nullptr;
+	return cao;
+}
+
+// Exported functions
+
+// garbage collector
+int CAORef::gc_object(lua_State *L) {
+	CAORef *obj = *(CAORef **)(lua_touserdata(L, 1));
+	delete obj;
+	return 0;
+}
+
+// remove(self, permanent)
+int CAORef::l_remove(lua_State *L)
+{
+
+	CAORef *ref = checkobject(L, 1);
+	GenericCAO *cao = getobject(ref);
+	if (cao == nullptr)
+		return 0;
+	if (cao->getType() == ACTIVEOBJECT_TYPE_PLAYER)
+		return 0;
+
+	verbosestream << "CAORef::l_remove(): id=" << cao->getId() << std::endl;
+	cao->removeFromScene(readParam<bool>(L, 2));
+	return 0;
+}
+
+// get_pos(self)
+int CAORef::l_get_pos(lua_State *L)
+{
+	CAORef *ref = checkobject(L, 1);
+	GenericCAO *cao = getobject(ref);
+	if (cao == nullptr)
+		return 0;
+
+	push_v3f(L, cao->getPosition() / BS);
+	return 1;
+}
+
+// set_pos(self, pos)
+int CAORef::l_set_pos(lua_State *L)
+{
+	CAORef *ref = checkobject(L, 1);
+	GenericCAO *cao = getobject(ref);
+	if (cao == nullptr)
+		return 0;
+
+	v3f pos = checkFloatPos(L, 2);
+
+	cao->setPosition(pos);
+	return 0;
+}
+
+// punch(self)
+int CAORef::l_punch(lua_State *L)
+{
+	Client *clt = getClient(L);
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	PointedThing pointed(cao->getId(), v3f(0, 0, 0), v3s16(0, 0, 0), 0);
+	ItemStack *wielded_item = new ItemStack();
+	clt->getEnv().getLocalPlayer()->getWieldedItem(wielded_item, nullptr);
+	cao->directReportPunch(v3f(0,0,0), wielded_item, 1000.0);
+	clt->interact(INTERACT_START_DIGGING, pointed);
+	return 1;
+}
+
+// right_click(self)
+int CAORef::l_right_click(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	PointedThing pointed(cao->getId(), v3f(0, 0, 0), v3s16(0, 0, 0), 0);
+	getClient(L)->interact(INTERACT_PLACE, pointed);
+	return 0;
+}
+
+// set_hp(self, hp)
+int CAORef::l_set_hp(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+    cao->setHp((u16)readParam<float>(L, 2));
+	return 0;
+}
+
+// get_hp(self)
+int CAORef::l_get_hp(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr) {
+		// Default hp is 1
+		lua_pushnumber(L, 1);
+		return 1;
+	}
+
+	u16 hp = cao->getHp();
+
+	lua_pushnumber(L, hp);
+	return 1;
+}
+
+// set_armor_groups(self, groups)
+int CAORef::l_set_armor_groups(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+	ItemGroupList groups;
+
+	read_groups(L, 2, groups);
+	cao->setArmorGroups(groups);
+	return 0;
+}
+
+// get_armor_groups(self)
+int CAORef::l_get_armor_groups(lua_State *L)
+{
+	CAORef *ref = checkobject(L, 1);
+	GenericCAO *cao = getobject(ref);
+	if (cao == nullptr)
+		return 0;
+
+	push_groups(L, cao->getArmorGroups());
+	return 1;
+}
+
+
+// set_bone_position(self, bone, position, rotation)
+int CAORef::l_set_bone_position(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+	std::string bone = readParam<std::string>(L, 2);
+	v3f position = check_v3f(L, 3);
+	v3f rotation = check_v3f(L, 4);
+
+	cao->setBonePosition(bone, position, rotation);
+	return 0;
+}
+
+// get_bone_position(self, bone)
+int CAORef::l_get_bone_position(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+	std::string bone = readParam<std::string>(L, 2);
+
+	v3f position = v3f(0, 0, 0);
+	v3f rotation = v3f(0, 0, 0);
+	cao->getBonePosition(bone, &position, &rotation);
+
+	push_v3f(L, position);
+	push_v3f(L, rotation);
+	return 2;
+}
+
+// set_attach(self, parent, bone, position, rotation, force_visible)
+int CAORef::l_set_attach(lua_State *L)
+{
+    GenericCAO *cao = getobject(checkobject(L, 1));
+	GenericCAO *parent = getobject(checkobject(L, 2));
+	if (cao == nullptr || parent == nullptr)
+		return 0;
+	if (cao == parent)
+		throw LuaError("CAORef::set_attach: attaching object to itself is not allowed.");
+
+	int parent_id = 0;
+	std::string bone;
+	v3f position = v3f(0, 0, 0);
+	v3f rotation = v3f(0, 0, 0);
+	bool force_visible;
+
+	cao->getAttachment(&parent_id, &bone, &position, &rotation, &force_visible);
+	if (parent_id) {
+		GenericCAO *old_parent = (GenericCAO *) getClient(L)->getEnv().getActiveObject(parent_id);
+		old_parent->removeAttachmentChild(cao->getId());
+	}
+
+	bone      = readParam<std::string>(L, 3, "");
+	position  = read_v3f(L, 4);
+	rotation  = read_v3f(L, 5);
+	force_visible = readParam<bool>(L, 6, false);
+
+	cao->setAttachment(parent->getId(), bone, position, rotation, force_visible);
+	parent->addAttachmentChild(cao->getId());
+	return 0;
+}
+
+// get_attach(self)
+int CAORef::l_get_attach(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+	int parent_id = 0;
+	std::string bone;
+	v3f position = v3f(0, 0, 0);
+	v3f rotation = v3f(0, 0, 0);
+	bool force_visible;
+
+	cao->getAttachment(&parent_id, &bone, &position, &rotation, &force_visible);
+	if (parent_id == 0)
+		return 0;
+
+	GenericCAO *parent = (GenericCAO *)getClient(L)->getEnv().getActiveObject(parent_id);
+	if(parent == NULL || parent->getId() == 0)
+    {
+        create(L, parent);
+    }
+    else
+    {
+        push_objectRef(L, parent->getId());
+    }
+	lua_pushlstring(L, bone.c_str(), bone.size());
+	push_v3f(L, position);
+	push_v3f(L, rotation);
+	lua_pushboolean(L, force_visible);
+	return 5;
+}
+
+// get_children(self)
+int CAORef::l_get_children(lua_State *L)
+{
+    ClientEnvironment &env = getClient(L)->getEnv();
+	CAORef *ref = checkobject(L, 1);
+	GenericCAO *cao = getobject(ref);
+	if (cao == nullptr)
+		return 0;
+
+	const std::unordered_set<int> child_ids = cao->getAttachmentChildIds();
+	int i = 0;
+
+	lua_createtable(L, child_ids.size(), 0);
+	for (const int id : child_ids) {
+		GenericCAO *child = (GenericCAO *)env.getActiveObject(id);
+		if(child == NULL || child->getId() == 0)
+        {
+            create(L, child);
+        }
+        else
+        {
+            push_objectRef(L, child->getId());
+        }
+		lua_rawseti(L, -2, ++i);
+	}
+	return 1;
+}
+
+// set_detach(self)
+int CAORef::l_set_detach(lua_State *L)
+{
+	CAORef *ref = checkobject(L, 1);
+	GenericCAO *cao = getobject(ref);
+	if (cao == nullptr)
+		return 0;
+
+	cao->clearParentAttachment();
+	return 0;
+}
+
+// set_properties(self, properties)
+int CAORef::l_set_properties(lua_State *L)
+{
+	CAORef *ref = checkobject(L, 1);
+	GenericCAO *cao = getobject(ref);
+	if (cao == nullptr)
+		return 0;
+
+	ObjectProperties *prop = cao->accessObjectProperties();
+	if (prop == nullptr)
+		return 0;
+
+	read_object_properties(L, 2, cao, prop, getClient(L)->idef());
+	return 0;
+}
+
+// get_properties(self)
+int CAORef::l_get_properties(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+	ObjectProperties *prop = cao->accessObjectProperties();
+	if (prop == nullptr)
+		return 0;
+
+	push_object_properties(L, prop);
+	return 1;
+}
+
+// is_player(self)
+int CAORef::l_is_player(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	lua_pushboolean(L, cao->is_player());
+	return 1;
+}
+
+int CAORef::l_is_LocalPlayer(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	lua_pushboolean(L, cao->isLocalPlayer());
+	return 1;
+}
+
+// set_nametag_attributes(self, attributes)
+int CAORef::l_set_nametag_attributes(lua_State *L)
+{
+	CAORef *ref = checkobject(L, 1);
+	GenericCAO *cao = getobject(ref);
+	if (cao == nullptr)
+		return 0;
+
+	ObjectProperties *prop = cao->accessObjectProperties();
+	if (prop == nullptr)
+		return 0;
+
+	lua_getfield(L, 2, "color");
+	if (!lua_isnil(L, -1)) {
+		video::SColor color = prop->nametag_color;
+		read_color(L, -1, &color);
+		prop->nametag_color = color;
+	}
+	lua_pop(L, 1);
+
+	std::string nametag = getstringfield_default(L, 2, "text", "");
+	prop->nametag = nametag;
+	cao->updateNametag();
+	lua_pushboolean(L, true);
+	return 1;
+}
+
+// get_nametag_attributes(self)
+int CAORef::l_get_nametag_attributes(lua_State *L)
+{
+	CAORef *ref = checkobject(L, 1);
+	GenericCAO *cao = getobject(ref);
+	if (cao == nullptr)
+		return 0;
+
+	ObjectProperties *prop = cao->accessObjectProperties();
+	if (!prop)
+		return 0;
+
+	video::SColor color = prop->nametag_color;
+
+	lua_newtable(L);
+	push_ARGB8(L, color);
+	lua_setfield(L, -2, "color");
+	lua_pushstring(L, prop->nametag.c_str());
+	lua_setfield(L, -2, "text");
+	return 1;
+}
+
+
+// set_velocity(self, velocity)
+int CAORef::l_set_velocity(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+	v3f vel = checkFloatPos(L, 2);
+
+	cao->setVelocity(vel);
+	return 0;
+}
+
+// add_velocity(self, velocity)
+int CAORef::l_add_velocity(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+	v3f vel = checkFloatPos(L, 2);
+
+    cao->addVelocity(vel);
+
+	return 0;
+}
+
+// get_velocity(self)
+int CAORef::l_get_velocity(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+    pushFloatPos(L, cao->getVelocity());
+    return 1;
+}
+
+// set_acceleration(self, acceleration)
+int CAORef::l_set_acceleration(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+	v3f acceleration = checkFloatPos(L, 2);
+
+	cao->setAcceleration(acceleration);
+	return 0;
+}
+
+// get_acceleration(self)
+int CAORef::l_get_acceleration(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+	pushFloatPos(L, cao->getAcceleration());
+	return 1;
+}
+
+// set_rotation(self, rotation)
+int CAORef::l_set_rotation(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+	v3f rotation = check_v3f(L, 2) * core::RADTODEG;
+
+	cao->setRotation(rotation);
+	return 0;
+}
+
+// get_rotation(self)
+int CAORef::l_get_rotation(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+	v3f rotation = cao->getRotation() * core::DEGTORAD;
+
+	lua_newtable(L);
+	push_v3f(L, rotation);
+	return 1;
+}
+
+// set_yaw(self, yaw)
+int CAORef::l_set_yaw(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+	if (isNaN(L, 2))
+		throw LuaError("CAORef::set_yaw: NaN value is not allowed.");
+
+	float yaw = readParam<float>(L, 2) * core::RADTODEG;
+
+	cao->setRotation(v3f(0, yaw, 0));
+	return 0;
+}
+
+// get_yaw(self)
+int CAORef::l_get_yaw(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+	float yaw = cao->getRotation().Y * core::DEGTORAD;
+
+	lua_pushnumber(L, yaw);
+	return 1;
+}
+
+// set_texture_mod(self, mod)
+int CAORef::l_set_texture_mod(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+	std::string mod = readParam<std::string>(L, 2);
+
+	cao->setTextureMod(mod);
+	return 0;
+}
+
+// get_texture_mod(self)
+int CAORef::l_get_texture_mod(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+	std::string mod = cao->getTextureMod();
+
+	lua_pushstring(L, mod.c_str());
+	return 1;
+}
+
+
+// DEPRECATED
+// get_entity_name(self)
+int CAORef::l_get_entity_name(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+	std::string name = cao->getName();
+
+	lua_pushstring(L, name.c_str());
+	return 1;
+}
+int CAORef::l_set_entity_name(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+	cao->setName(readParam<std::string>(L, 2));
+	return 1;
+}
+/* get_luaentity(self)
+int CAORef::l_get_luaentity(lua_State *L)
+{
+	NO_MAP_LOCK_REQUIRED;
+	CAORef *ref = checkobject(L, 1);
+	LuaEntitycao *entitycao = getluaobject(ref);
+	if (entitycao == nullptr)
+		return 0;
+
+	luaentity_get(L, entitycao->getId());
+	return 1;
+}
+
+ Player-only */
+// DEPRECATED
+// get_look_yaw(self)
+int CAORef::l_get_look_yaw(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+	lua_pushnumber(L, cao->getRadYawDep());
+	return 1;
+}
+
+
+// get_look_horizontal(self)
+int CAORef::l_get_look_horizontal(lua_State *L)
+{
+	GenericCAO *cao = getobject(checkobject(L, 1));
+	if (cao == nullptr)
+		return 0;
+
+	lua_pushnumber(L, cao->getRadRotation().Y);
+	return 1;
+}
+
+CAORef::CAORef(GenericCAO *object):
+	m_object(object)
+{}
+
+// Creates an CAORef and leaves it on top of stack
+// Not callable from Lua; all references are created on the C side.
+void CAORef::create(lua_State *L, GenericCAO *object)
+{
+	CAORef *obj = new CAORef(object);
+	*(void **)(lua_newuserdata(L, sizeof(void *))) = obj;
+	luaL_getmetatable(L, className);
+	lua_setmetatable(L, -2);
+}
+
+void CAORef::set_null(lua_State *L)
+{
+	CAORef *obj = checkobject(L, -1);
+	obj->m_object = nullptr;
+}
+
+int CAORef::l_use_on(lua_State *L)
+{
+    GenericCAO *cao = getobject(checkobject(L, 1));
+	PointedThing pointed(cao->getId(), v3f(0, 0, 0), v3s16(0, 0, 0), 0);
+	getClient(L)->interact(INTERACT_USE, pointed);
+	return 1;
+}
+
+int CAORef::l_ignore_props(lua_State *L)
+{
+    GenericCAO *cao = getobject(checkobject(L, 1));
+	cao->ignore_props = readParam<bool>(L, 2);
+	return 1;
+}
+
+void CAORef::Register(lua_State *L)
+{
+	lua_newtable(L);
+	int methodtable = lua_gettop(L);
+	luaL_newmetatable(L, className);
+	int metatable = lua_gettop(L);
+
+	lua_pushliteral(L, "__metatable");
+	lua_pushvalue(L, methodtable);
+	lua_settable(L, metatable); // hide metatable from lua getmetatable()
+
+	lua_pushliteral(L, "__index");
+	lua_pushvalue(L, methodtable);
+	lua_settable(L, metatable);
+
+	lua_pushliteral(L, "__gc");
+	lua_pushcfunction(L, gc_object);
+	lua_settable(L, metatable);
+
+	lua_pop(L, 1); // Drop metatable
+
+	luaL_openlib(L, 0, methods, 0); // fill methodtable
+	lua_pop(L, 1);  // drop methodtable
+}
+
+const char CAORef::className[] = "CAORef";
+luaL_Reg CAORef::methods[] = {
+	// GenericCAO
+	luamethod(CAORef, remove),
+	luamethod_aliased(CAORef, get_pos, getpos),
+	luamethod_aliased(CAORef, set_pos, setpos),
+	luamethod(CAORef, punch),
+	luamethod(CAORef, right_click),
+	luamethod(CAORef, set_hp),
+	luamethod(CAORef, get_hp),
+	luamethod(CAORef, set_armor_groups),
+	luamethod(CAORef, get_armor_groups),
+	luamethod(CAORef, set_bone_position),
+	luamethod(CAORef, get_bone_position),
+	luamethod(CAORef, set_attach),
+	luamethod(CAORef, get_attach),
+	luamethod(CAORef, get_children),
+	luamethod(CAORef, set_detach),
+	luamethod(CAORef, set_properties),
+	luamethod(CAORef, get_properties),
+	luamethod(CAORef, set_nametag_attributes),
+	luamethod(CAORef, get_nametag_attributes),
+
+	luamethod_aliased(CAORef, set_velocity, setvelocity),
+	luamethod_aliased(CAORef, add_velocity, add_player_velocity),
+	luamethod_aliased(CAORef, get_velocity, getvelocity),
+	luamethod_dep(CAORef, get_velocity, get_player_velocity),
+
+	// LuaEntitycao-only
+	luamethod_aliased(CAORef, set_acceleration, setacceleration),
+	luamethod_aliased(CAORef, get_acceleration, getacceleration),
+	luamethod_aliased(CAORef, set_yaw, setyaw),
+	luamethod_aliased(CAORef, get_yaw, getyaw),
+	luamethod(CAORef, set_rotation),
+	luamethod(CAORef, get_rotation),
+	luamethod_aliased(CAORef, set_texture_mod, settexturemod),
+	luamethod(CAORef, get_texture_mod),
+	luamethod(CAORef, get_entity_name),
+//	luamethod(CAORef, get_luaentity),
+
+	// Player-only
+	luamethod(CAORef, is_player),
+	luamethod(CAORef, is_LocalPlayer),
+	luamethod(CAORef, get_look_yaw),
+	luamethod(CAORef, get_look_horizontal),
+	luamethod(CAORef, use_on),
+	luamethod(CAORef, ignore_props),
+
+	{0,0}
+};
+#endif //Server

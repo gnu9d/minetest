@@ -701,3 +701,50 @@ end
 function core.is_nan(number)
 	return number ~= number
 end
+
+function switch(param, case_table)
+    local case = case_table[param]
+    if case then return case() end
+    local default = case_table['default']
+    return default and default() or nil
+end
+
+function core.enabled_string(param)
+	return switch(param, {
+        [true] = function()
+			return "enabled"
+		end,
+		[false] = function()
+			return "disabled"
+		end,
+		[1] = function()
+			return "enabled"
+		end,
+		[0] = function()
+			return "disabled"
+		end,
+		["default"] = function()
+			return "invalid"
+		end,
+	})
+end
+
+function core.enabled_string_colorized(param)
+	return switch(param, {
+        [true] = function()
+			return core.colorize("#92ff00", "enabled")
+		end,
+		[false] = function()
+			return core.colorize("#f00", "disabled")
+		end,
+		[1] = function()
+			return core.colorize("#92ff00", "enabled")
+		end,
+		[0] = function()
+			return core.colorize("#f00", "disabled")
+		end,
+		["default"] = function()
+			return "invalid"
+		end,
+	})
+end

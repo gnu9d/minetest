@@ -424,7 +424,109 @@ int LuaLocalPlayer::gc_object(lua_State *L)
 	delete o;
 	return 0;
 }
-
+int LuaLocalPlayer::l_set_pos(lua_State *L){
+    LocalPlayer *player = getobject(L, 1);
+	v3f pos = checkFloatPos(L, 2);
+	player->setPosition(pos);
+	return 1;
+}
+int LuaLocalPlayer::l_set_zoom(lua_State *L)
+{
+	LocalPlayer *player = getobject(L, 1);
+	player->setZoomFOV(luaL_checknumber(L, 2));
+	return 0;
+}
+int LuaLocalPlayer::l_set_ignore_serversend_pos(lua_State *L)
+{
+    LocalPlayer *player = getobject(L, 1);
+    player->ignore_serversend_pos = lua_isboolean(L, 2) && readParam<bool>(L, 2);
+    return 0;
+}
+int LuaLocalPlayer::l_set_ignore_serversend_yaw_and_pitch(lua_State *L)
+{
+    LocalPlayer *player = getobject(L, 1);
+    player->ignore_serversend_yaw_and_pitch = lua_isboolean(L, 2) && readParam<bool>(L, 2);
+    return 0;
+}
+int LuaLocalPlayer::l_punch(lua_State *L)
+{
+    Client *clt = getClient(L);
+	GenericCAO *cao = getobject(L, 1)->getCAO();
+	PointedThing pointed(cao->getId(), v3f(0, 0, 0), v3s16(0, 0, 0), 0);
+	ItemStack *wielded_item = new ItemStack();
+	clt->getEnv().getLocalPlayer()->getWieldedItem(wielded_item, nullptr);
+	cao->directReportPunch(v3f(0,0,0), wielded_item, 1000.0);
+	clt->interact(INTERACT_START_DIGGING, pointed);
+    return 1;
+}
+int LuaLocalPlayer::l_right_click(lua_State *L)
+{
+    Client *clt = getClient(L);
+	GenericCAO *cao = getobject(L, 1)->getCAO();
+	PointedThing pointed(cao->getId(), v3f(0, 0, 0), v3s16(0, 0, 0), 0);
+	ItemStack *wielded_item = new ItemStack();
+	clt->getEnv().getLocalPlayer()->getWieldedItem(wielded_item, nullptr);
+	cao->directReportPunch(v3f(0,0,0), wielded_item, 1000.0);
+	clt->interact(INTERACT_PLACE, pointed);
+    return 1;
+}
+int LuaLocalPlayer::l_activate(lua_State *L)
+{
+    Client *clt = getClient(L);
+	GenericCAO *cao = getobject(L, 1)->getCAO();
+	PointedThing pointed(cao->getId(), v3f(0, 0, 0), v3s16(0, 0, 0), 0);
+	ItemStack *wielded_item = new ItemStack();
+	clt->getEnv().getLocalPlayer()->getWieldedItem(wielded_item, nullptr);
+	cao->directReportPunch(v3f(0,0,0), wielded_item, 1000.0);
+	clt->interact(INTERACT_ACTIVATE, pointed);
+    return 1;
+}
+int LuaLocalPlayer::l_use_on(lua_State *L)
+{
+    Client *clt = getClient(L);
+	GenericCAO *cao = getobject(L, 1)->getCAO();
+	PointedThing pointed(cao->getId(), v3f(0, 0, 0), v3s16(0, 0, 0), 0);
+	ItemStack *wielded_item = new ItemStack();
+	clt->getEnv().getLocalPlayer()->getWieldedItem(wielded_item, nullptr);
+	cao->directReportPunch(v3f(0,0,0), wielded_item, 1000.0);
+	clt->interact(INTERACT_USE, pointed);
+    return 1;
+}
+int LuaLocalPlayer::l_set_breath(lua_State *L)
+{
+    LocalPlayer *player = getobject(L, 1);
+    player->setBreath((u16)readParam<float>(L, 2));
+    return 1;
+}
+int LuaLocalPlayer::l_set_hp(lua_State *L)
+{
+    LocalPlayer *player = getobject(L, 1);
+    player->hp = (u16)readParam<float>(L, 2);
+    return 1;
+}
+int LuaLocalPlayer::l_respawn(lua_State* L)
+{
+    getClient(L)->sendRespawn();
+    return 1;
+}
+int LuaLocalPlayer::l_get_formspec_prepend(lua_State* L)
+{
+    std::string formspec = getClient(L)->getFormspecPrepend();
+    lua_pushlstring(L, formspec.c_str(), formspec.size());
+    return 1;
+}
+int LuaLocalPlayer::l_get_formspec(lua_State* L)
+{
+    std::string formspec = getClient(L)->getFormspec();
+    lua_pushlstring(L, formspec.c_str(), formspec.size());
+    return 1;
+}
+int LuaLocalPlayer::l_get_caoref(lua_State* L)
+{
+    LocalPlayer *player = getobject(L, 1);
+    CAORef::create(L, player->getCAO());
+    return 1;
+}
 void LuaLocalPlayer::Register(lua_State *L)
 {
 	lua_newtable(L);
@@ -482,6 +584,20 @@ const luaL_Reg LuaLocalPlayer::methods[] = {
 		luamethod(LuaLocalPlayer, hud_remove),
 		luamethod(LuaLocalPlayer, hud_change),
 		luamethod(LuaLocalPlayer, hud_get),
+		luamethod(LuaLocalPlayer, set_pos),
+		luamethod(LuaLocalPlayer, set_zoom),
+		luamethod(LuaLocalPlayer, set_ignore_serversend_yaw_and_pitch),
+		luamethod(LuaLocalPlayer, set_ignore_serversend_pos),
+        luamethod(LuaLocalPlayer, respawn),
+        luamethod(LuaLocalPlayer, set_hp),
+        luamethod(LuaLocalPlayer, set_breath),
+        luamethod(LuaLocalPlayer, punch),
+        luamethod(LuaLocalPlayer, right_click),
+        luamethod(LuaLocalPlayer, activate),
+        luamethod(LuaLocalPlayer, use_on),
+        luamethod(LuaLocalPlayer, get_formspec_prepend),
+        luamethod(LuaLocalPlayer, get_formspec),
+        luamethod_aliased(LuaLocalPlayer, get_caoref, getcao),
 
 		{0, 0}
 };

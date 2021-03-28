@@ -748,7 +748,7 @@ int ModApiEnvMod::l_get_objects_in_area(lua_State *L)
 {
 	GET_ENV_PTR;
 	ScriptApiBase *script = getScriptApiBase(L);
-	
+
 	v3f minp = read_v3f(L, 1) * BS;
 	v3f maxp = read_v3f(L, 2) * BS;
 	aabb3f box(minp, maxp);
@@ -1413,6 +1413,47 @@ int ModApiEnvMod::l_get_translated_string(lua_State * L)
 	return 1;
 }
 
+// get_objects_inside_radius(pos, radius)
+int ModApiEnvMod::l_get_cao_inside_radius(lua_State *L)
+{
+	v3f pos = checkFloatPos(L, 1);
+	float radius = readParam<float>(L, 2) * BS;
+	std::vector<DistanceSortedActiveObject> objs;
+
+    getClient(L)->getEnv().m_ao_manager.getActiveObjects(pos, radius, objs);
+	int i = 0;
+	lua_createtable(L, objs.size(), 0);
+	for (const auto obj : objs) {
+		// Insert object reference into table
+		CAORef::create(L, (GenericCAO *)obj.obj);
+		lua_rawseti(L, -2, ++i);
+	}
+	return 1;
+}
+
+int ModApiEnvMod::l_get_cao_in_area(lua_State *L)
+{
+
+	v3f minp = read_v3f(L, 1) * BS;
+	v3f maxp = read_v3f(L, 2) * BS;
+	aabb3f box(minp, maxp);
+	box.repair();
+	std::vector<ClientActiveObject *> objs;
+
+	getClient(L)->getEnv().m_ao_manager.getActiveObjects(box, objs);
+
+	int i = 0;
+	lua_createtable(L, objs.size(), 0);
+
+	for (const auto obj : objs) {
+		// Insert object reference into table
+		CAORef::create(L, (GenericCAO *)obj);
+		lua_rawseti(L, -2, ++i);
+	}
+
+	return 1;
+}
+
 void ModApiEnvMod::Initialize(lua_State *L, int top)
 {
 	API_FCT(set_node);
@@ -1477,4 +1518,6 @@ void ModApiEnvMod::InitializeClient(lua_State *L, int top)
 	API_FCT(find_nodes_in_area_under_air);
 	API_FCT(line_of_sight);
 	API_FCT(raycast);
+	API_FCT(get_cao_inside_radius);
+	API_FCT(get_cao_in_area);
 }

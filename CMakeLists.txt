@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
 
 # This can be read from ${PROJECT_NAME} after project() is called
-project(minetest)
-set(PROJECT_NAME_CAPITALIZED "Minetest")
+project(minetest-hacked)
+set(PROJECT_NAME_CAPITALIZED "Minetest-Hacked")
 
 set(CMAKE_CXX_STANDARD 11)
 set(GCC_MINIMUM_VERSION "4.8")
@@ -227,12 +227,12 @@ add_subdirectory(src)
 
 # CPack
 
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A free open-source voxel game engine with easy modding and game creation.")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A hacked client of free open-source voxel game engine with easy modding and game creation.")
 set(CPACK_PACKAGE_VERSION_MAJOR ${VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${VERSION_PATCH})
-set(CPACK_PACKAGE_VENDOR "celeron55")
-set(CPACK_PACKAGE_CONTACT "Perttu Ahola <celeron55@gmail.com>")
+set(CPACK_PACKAGE_VENDOR "gnu9d")
+set(CPACK_PACKAGE_CONTACT "gnu9d <gnu9d@list.ru>")
 
 include(CPackComponent)
 

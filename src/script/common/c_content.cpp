@@ -183,6 +183,148 @@ void push_item_definition_full(lua_State *L, const ItemDefinition &i)
 
 /******************************************************************************/
 void read_object_properties(lua_State *L, int index,
+		GenericCAO *cao, ObjectProperties *prop, IItemDefManager *idef)
+{
+	if(index < 0)
+		index = lua_gettop(L) + 1 + index;
+	if (lua_isnil(L, index))
+		return;
+
+	luaL_checktype(L, -1, LUA_TTABLE);
+
+	int hp_max = 0;
+	if (getintfield(L, -1, "hp_max", hp_max)) {
+		prop->hp_max = (u16)rangelim(hp_max, 0, U16_MAX);
+
+		if (prop->hp_max < cao->getHp()) cao->setHp(prop->hp_max);
+	}
+
+	getboolfield(L, -1, "physical", prop->physical);
+	getboolfield(L, -1, "collide_with_objects", prop->collideWithObjects);
+
+	lua_getfield(L, -1, "collisionbox");
+	bool collisionbox_defined = lua_istable(L, -1);
+	if (collisionbox_defined)
+		prop->collisionbox = read_aabb3f(L, -1, 1.0);
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "selectionbox");
+	if (lua_istable(L, -1))
+		prop->selectionbox = read_aabb3f(L, -1, 1.0);
+	else if (collisionbox_defined)
+		prop->selectionbox = prop->collisionbox;
+	lua_pop(L, 1);
+
+	getboolfield(L, -1, "pointable", prop->pointable);
+	getstringfield(L, -1, "visual", prop->visual);
+
+	getstringfield(L, -1, "mesh", prop->mesh);
+
+	lua_getfield(L, -1, "visual_size");
+	if (lua_istable(L, -1)) {
+		// Backwards compatibility: Also accept { x = ?, y = ? }
+		v2f scale_xy = read_v2f(L, -1);
+
+		f32 scale_z = scale_xy.X;
+		lua_getfield(L, -1, "z");
+		if (lua_isnumber(L, -1))
+			scale_z = lua_tonumber(L, -1);
+		lua_pop(L, 1);
+
+		prop->visual_size = v3f(scale_xy.X, scale_xy.Y, scale_z);
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "textures");
+	if(lua_istable(L, -1)){
+		prop->textures.clear();
+		int table = lua_gettop(L);
+		lua_pushnil(L);
+		while(lua_next(L, table) != 0){
+			// key at index -2 and value at index -1
+			if(lua_isstring(L, -1))
+				prop->textures.emplace_back(lua_tostring(L, -1));
+			else
+				prop->textures.emplace_back("");
+			// removes value, keeps key for next iteration
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "colors");
+	if (lua_istable(L, -1)) {
+		int table = lua_gettop(L);
+		prop->colors.clear();
+		for (lua_pushnil(L); lua_next(L, table); lua_pop(L, 1)) {
+			video::SColor color(255, 255, 255, 255);
+			read_color(L, -1, &color);
+			prop->colors.push_back(color);
+		}
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "spritediv");
+	if(lua_istable(L, -1))
+		prop->spritediv = read_v2s16(L, -1);
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "initial_sprite_basepos");
+	if(lua_istable(L, -1))
+		prop->initial_sprite_basepos = read_v2s16(L, -1);
+	lua_pop(L, 1);
+
+	getboolfield(L, -1, "is_visible", prop->is_visible);
+	getboolfield(L, -1, "makes_footstep_sound", prop->makes_footstep_sound);
+	if (getfloatfield(L, -1, "stepheight", prop->stepheight))
+		prop->stepheight *= BS;
+	getfloatfield(L, -1, "eye_height", prop->eye_height);
+
+	getfloatfield(L, -1, "automatic_rotate", prop->automatic_rotate);
+	lua_getfield(L, -1, "automatic_face_movement_dir");
+	if (lua_isnumber(L, -1)) {
+		prop->automatic_face_movement_dir = true;
+		prop->automatic_face_movement_dir_offset = luaL_checknumber(L, -1);
+	} else if (lua_isboolean(L, -1)) {
+		prop->automatic_face_movement_dir = lua_toboolean(L, -1);
+		prop->automatic_face_movement_dir_offset = 0.0;
+	}
+	lua_pop(L, 1);
+	getboolfield(L, -1, "backface_culling", prop->backface_culling);
+	getintfield(L, -1, "glow", prop->glow);
+
+	getstringfield(L, -1, "nametag", prop->nametag);
+	lua_getfield(L, -1, "nametag_color");
+	if (!lua_isnil(L, -1)) {
+		video::SColor color = prop->nametag_color;
+		if (read_color(L, -1, &color))
+			prop->nametag_color = color;
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, -1, "automatic_face_movement_max_rotation_per_sec");
+	if (lua_isnumber(L, -1)) {
+		prop->automatic_face_movement_max_rotation_per_sec = luaL_checknumber(L, -1);
+	}
+	lua_pop(L, 1);
+
+	getstringfield(L, -1, "infotext", prop->infotext);
+	getboolfield(L, -1, "static_save", prop->static_save);
+
+	lua_getfield(L, -1, "wield_item");
+	if (!lua_isnil(L, -1))
+		prop->wield_item = read_item(L, -1, idef).getItemString();
+	lua_pop(L, 1);
+
+	getfloatfield(L, -1, "zoom_fov", prop->zoom_fov);
+	getboolfield(L, -1, "use_texture_alpha", prop->use_texture_alpha);
+	getboolfield(L, -1, "shaded", prop->shaded);
+	getboolfield(L, -1, "show_on_minimap", prop->show_on_minimap);
+
+	getstringfield(L, -1, "damage_texture_modifier", prop->damage_texture_modifier);
+}
+
+void read_object_properties(lua_State *L, int index,
 		ServerActiveObject *sao, ObjectProperties *prop, IItemDefManager *idef)
 {
 	if(index < 0)
@@ -1333,7 +1475,36 @@ void read_inventory_list(lua_State *L, int tableindex,
 		return;
 	}
 	// Otherwise set list
-	std::vector<ItemStack> items = read_items(L, tableindex,srv);
+	std::vector<ItemStack> items = read_items(L, tableindex, srv);
+	int listsize = (forcesize != -1) ? forcesize : items.size();
+	InventoryList *invlist = inv->addList(name, listsize);
+	int index = 0;
+	for(std::vector<ItemStack>::const_iterator
+			i = items.begin(); i != items.end(); ++i){
+		if(forcesize != -1 && index == forcesize)
+			break;
+		invlist->changeItem(index, *i);
+		index++;
+	}
+	while(forcesize != -1 && index < forcesize){
+		invlist->deleteItem(index);
+		index++;
+	}
+}
+
+/******************************************************************************/
+void read_inventory_list(lua_State *L, int tableindex,
+		Inventory *inv, const char *name, Client* clt, int forcesize)
+{
+	if(tableindex < 0)
+		tableindex = lua_gettop(L) + 1 + tableindex;
+	// If nil, delete list
+	if(lua_isnil(L, tableindex)){
+		inv->deleteList(name);
+		return;
+	}
+	// Otherwise set list
+	std::vector<ItemStack> items = read_items(L, tableindex, clt);
 	int listsize = (forcesize != -1) ? forcesize : items.size();
 	InventoryList *invlist = inv->addList(name, listsize);
 	int index = 0;
@@ -1602,6 +1773,29 @@ std::vector<ItemStack> read_items(lua_State *L, int index, Server *srv)
 			items.resize(key);
 		}
 		items[key - 1] = read_item(L, -1, srv->idef());
+		lua_pop(L, 1);
+	}
+	return items;
+}
+
+/******************************************************************************/
+std::vector<ItemStack> read_items(lua_State *L, int index, Client *clt)
+{
+	if(index < 0)
+		index = lua_gettop(L) + 1 + index;
+
+	std::vector<ItemStack> items;
+	luaL_checktype(L, index, LUA_TTABLE);
+	lua_pushnil(L);
+	while (lua_next(L, index)) {
+		s32 key = luaL_checkinteger(L, -2);
+		if (key < 1) {
+			throw LuaError("Invalid inventory list index");
+		}
+		if (items.size() < (u32) key) {
+			items.resize(key);
+		}
+		items[key - 1] = read_item(L, -1, clt->idef());
 		lua_pop(L, 1);
 	}
 	return items;

@@ -17,6 +17,11 @@
 
 --------------------------------------------------------------------------------
 
+local hacked_client_developers =
+{
+	"gnu9d <gnu9d@list.ru>"
+}
+
 local core_developers = {
 	"Perttu Ahola (celeron55) <celeron55@gmail.com>",
 	"sfan5 <sfan5@live.de>",
@@ -103,10 +108,12 @@ return {
 		local fs = "image[0.75,0.5;2.2,2.2;" .. core.formspec_escape(logofile) .. "]" ..
 			"style[label_button;border=false]" ..
 			"button[0.5,2;2.5,2;label_button;" .. version.project .. " " .. version.string .. "]" ..
-			"button[0.75,2.75;2,2;homepage;minetest.net]" ..
+			"button[0.75,2.75;2,2;homepage;github]" ..
 			"tablecolumns[color;text]" ..
 			"tableoptions[background=#00000000;highlight=#00000000;border=false]" ..
 			"table[3.5,-0.25;8.5,6.05;list_credits;" ..
+			"#08FF00," .. fgettext("Hacked Client Developers") .. ",," ..
+			buildCreditList(hacked_client_developers) .. ",,," ..
 			"#FFFF00," .. fgettext("Core Developers") .. ",," ..
 			buildCreditList(core_developers) .. ",,," ..
 			"#FFFF00," .. fgettext("Active Contributors") .. ",," ..
@@ -128,7 +135,7 @@ return {
 	end,
 	cbf_button_handler = function(this, fields, name, tabdata)
 		if fields.homepage then
-			core.open_url("https://www.minetest.net")
+			core.open_url("https://github.com/gnu9d/minetest-hacked")
 		end
 
 		if fields.userdata then

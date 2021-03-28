@@ -51,6 +51,10 @@ public:
 	// doesn't support health points
 	u16 hp = 0;
 	bool touching_ground = false;
+
+	bool ignore_serversend_pos = false;
+	bool ignore_serversend_yaw_and_pitch = false;
+
 	// This oscillates so that the player jumps a bit above the surface
 	bool in_liquid = false;
 	// This is more stable and defines the maximum speed of the player
@@ -152,6 +156,8 @@ public:
 	bool getAutojump() const { return m_autojump; }
 
 	bool isDead() const;
+
+	std::string formspec;
 
 	inline void addVelocity(const v3f &vel)
 	{
