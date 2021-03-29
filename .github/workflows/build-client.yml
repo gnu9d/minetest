@@ -27,7 +27,7 @@ on:
 
 jobs:
   # This is our minor gcc compiler
-  gcc_6:
+  🐧-gcc_6:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
@@ -47,9 +47,14 @@ jobs:
       - name: Test
         run: |
           ./bin/minetest-hacked --run-unittests
+      - name: 'Upload artifact'
+        uses: actions/upload-artifact@v2
+        with:
+            name: '🐧-gcc6'
+            path: ./
 
   # This is the current gcc compiler (available in bionic)
-  gcc_8:
+  🐧-gcc_8:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
@@ -70,8 +75,14 @@ jobs:
         run: |
           ./bin/minetest-hacked --run-unittests
 
+      - name: 'Upload artifact'
+        uses: actions/upload-artifact@v2
+        with:
+            name: '🐧-gcc9'
+            path: ./
+
   # This is our minor clang compiler
-  clang_3_9:
+  🐧-clang_3_9:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
@@ -92,8 +103,14 @@ jobs:
         run: |
           ./bin/minetest-hacked --run-unittests
 
+      - name: 'Upload artifact'
+        uses: actions/upload-artifact@v2
+        with:
+            name: '🐧-clang3.9'
+            path: ./
+
   # This is the current clang version
-  clang_9:
+  🐧-clang_9:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
@@ -118,8 +135,14 @@ jobs:
         run: |
           valgrind --leak-check=full --leak-check-heuristics=all --undef-value-errors=no --error-exitcode=9 ./bin/minetest-hacked --run-unittests
 
+      - name: 'Upload artifact'
+        uses: actions/upload-artifact@v2
+        with:
+            name: '🐧-clang9'
+            path: ./
+
   # Build without freetype (client-only)
-  clang_9_no_freetype:
+  🐧-clang_9_no_freetype:
     name: "clang_9 (FREETYPE=0)"
     runs-on: ubuntu-18.04
     steps:
@@ -140,8 +163,14 @@ jobs:
       - name: Test
         run: |
           ./bin/minetest-hacked --run-unittests
+          
+      - name: 'Upload artifact'
+        uses: actions/upload-artifact@v2
+        with:
+            name: '🐧-clang9-no_freetype'
+            path: ./
 
-  win32:
+  💩-win32:
     name: "MinGW cross-compiler (32-bit)"
     runs-on: ubuntu-18.04
     steps:
@@ -159,7 +188,13 @@ jobs:
           NO_MINETEST_GAME: 1
           NO_PACKAGE: 1
 
-  win64:
+      - name: 'Upload artifact'
+        uses: actions/upload-artifact@v2
+        with:
+            name: '💩-mingw-32'
+            path: ./
+
+  💩-win64:
     name: "MinGW cross-compiler (64-bit)"
     runs-on: ubuntu-18.04
     steps:
@@ -176,6 +211,12 @@ jobs:
         env:
           NO_MINETEST_GAME: 1
           NO_PACKAGE: 1
+          
+      - name: 'Upload artifact'
+        uses: actions/upload-artifact@v2
+        with:
+            name: '💩-mingw-64'
+            path: ./
 
   msvc:
     name: VS 2019 ${{ matrix.config.arch }}-${{ matrix.type }}
