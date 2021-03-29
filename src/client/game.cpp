@@ -68,6 +68,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "util/pointedthing.h"
 #include "util/quicktune_shortcutter.h"
 #include "irrlicht_changes/static_text.h"
+#include "irr_ptr.h"
 #include "version.h"
 #include "script/scripting_client.h"
 #include "hud.h"
@@ -171,13 +172,7 @@ struct LocalFormspecHandler : public TextDest
 				return;
 			}
 
-			if (fields.find("quit") != fields.end()) {
-				return;
-			}
-
-			if (fields.find("btn_continue") != fields.end()) {
-				return;
-			}
+			return;
 		}
 
 		if (m_formname == "MT_DEATH_SCREEN") {
@@ -431,6 +426,7 @@ class GameGlobalShaderConstantSetter : public IShaderConstantSetter
 	CachedPixelShaderSetting<float, 3> m_camera_offset_pixel;
 	CachedPixelShaderSetting<float, 3> m_camera_offset_vertex;
 	CachedPixelShaderSetting<SamplerLayer_t> m_base_texture;
+	CachedPixelShaderSetting<SamplerLayer_t> m_normal_texture;
 	Client *m_client;
 
 public:
@@ -464,6 +460,7 @@ public:
 		m_camera_offset_pixel("cameraOffset"),
 		m_camera_offset_vertex("cameraOffset"),
 		m_base_texture("baseTexture"),
+		m_normal_texture("normalTexture"),
 		m_client(client)
 	{
 		g_settings->registerChangedCallback("enable_fog", settingsCallback, this);
@@ -551,8 +548,9 @@ public:
 		m_camera_offset_pixel.set(camera_offset_array, services);
 		m_camera_offset_vertex.set(camera_offset_array, services);
 
-		SamplerLayer_t base_tex = 0;
+		SamplerLayer_t base_tex = 0, normal_tex = 1;
 		m_base_texture.set(&base_tex, services);
+		m_normal_texture.set(&normal_tex, services);
 	}
 };
 
@@ -652,6 +650,8 @@ struct ClientEventHandler
 /****************************************************************************
  THE GAME
  ****************************************************************************/
+
+using PausedNodesList = std::vector<std::pair<irr_ptr<scene::IAnimatedMeshSceneNode>, float>>;
 
 /* This is not intended to be a public class. If a public class becomes
  * desirable then it may be better to create another 'wrapper' class that
@@ -802,6 +802,9 @@ private:
 	void showDeathFormspec();
 	void showPauseMenu();
 
+	void pauseAnimation();
+	void resumeAnimation();
+
 	// ClientEvent handlers
 	void handleClientEvent_None(ClientEvent *event, CameraOrientation *cam);
 	void handleClientEvent_PlayerDamage(ClientEvent *event, CameraOrientation *cam);
@@ -828,6 +831,8 @@ private:
 		const v3s16 &nodepos, const v3s16 &neighbourpos, const PointedThing &pointed,
 		const NodeMetadata *meta);
 	static const ClientEventHandler clientEventHandler[CLIENTEVENT_MAX];
+
+	f32 getSensitivityScaleFactor() const;
 
 	InputHandler *input = nullptr;
 
@@ -862,6 +867,9 @@ private:
 	Hud *hud = nullptr;
 	Minimap *mapper = nullptr;
 
+	// Map server hud ids to client hud ids
+	std::unordered_map<u32, u32> m_hud_server_to_client;
+
 	GameRunData runData;
 	Flags m_flags;
 
@@ -876,6 +884,7 @@ private:
 	std::string *error_message;
 	bool *reconnect_requested;
 	scene::ISceneNode *skybox;
+	PausedNodesList paused_animated_nodes;
 
 	bool simple_singleplayer_mode;
 	/* End 'cache' */
@@ -2313,7 +2322,6 @@ void Game::checkZoomEnabled()
 		m_game_ui->showTranslatedStatusText("Zoom currently disabled by game or mod");
 }
 
-
 void Game::updateCameraDirection(CameraOrientation *cam, float dtime)
 {
 	if ((device->isWindowActive() && device->isWindowFocused()
@@ -2349,6 +2357,18 @@ void Game::updateCameraDirection(CameraOrientation *cam, float dtime)
 	}
 }
 
+// Get the factor to multiply with sensitivity to get the same mouse/joystick
+// responsiveness independently of FOV.
+f32 Game::getSensitivityScaleFactor() const
+{
+	f32 fov_y = client->getCamera()->getFovY();
+
+	// Multiply by a constant such that it becomes 1.0 at 72 degree FOV and
+	// 16:9 aspect ratio to minimize disruption of existing sensitivity
+	// settings.
+	return tan(fov_y / 2.0f) * 1.3763818698f;
+}
+
 void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 {
 #ifdef HAVE_TOUCHSCREENGUI
@@ -2364,8 +2384,9 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 			dist.Y = -dist.Y;
 		}
 
-		cam->camera_yaw   -= dist.X * m_cache_mouse_sensitivity;
-		cam->camera_pitch += dist.Y * m_cache_mouse_sensitivity;
+		f32 sens_scale = getSensitivityScaleFactor();
+		cam->camera_yaw   -= dist.X * m_cache_mouse_sensitivity * sens_scale;
+		cam->camera_pitch += dist.Y * m_cache_mouse_sensitivity * sens_scale;
 
 		if (dist.X != 0 || dist.Y != 0)
 			input->setMousePos(center.X, center.Y);
@@ -2374,7 +2395,8 @@ void Game::updateCameraOrientation(CameraOrientation *cam, float dtime)
 #endif
 
 	if (m_cache_enable_joysticks) {
-		f32 c = m_cache_joystick_frustum_sensitivity * (1.f / 32767.f) * dtime;
+		f32 sens_scale = getSensitivityScaleFactor();
+		f32 c = m_cache_joystick_frustum_sensitivity * (1.f / 32767.f) * dtime * sens_scale;
 		cam->camera_yaw -= input->joystick.getAxisWithoutDead(JA_FRUSTUM_HORIZONTAL) * c;
 		cam->camera_pitch += input->joystick.getAxisWithoutDead(JA_FRUSTUM_VERTICAL) * c;
 	}
@@ -2397,7 +2419,7 @@ void Game::updatePlayerControl(const CameraOrientation &cam)
 		input->isKeyDown(KeyType::LEFT),
 		input->isKeyDown(KeyType::RIGHT),
 		isKeyDown(KeyType::JUMP),
-		isKeyDown(KeyType::SPECIAL1),
+		isKeyDown(KeyType::AUX1),
 		isKeyDown(KeyType::SNEAK),
 		isKeyDown(KeyType::ZOOM),
 		isKeyDown(KeyType::DIG),
@@ -2414,7 +2436,7 @@ void Game::updatePlayerControl(const CameraOrientation &cam)
 			( (u32)(isKeyDown(KeyType::LEFT)                          & 0x1) << 2) |
 			( (u32)(isKeyDown(KeyType::RIGHT)                         & 0x1) << 3) |
 			( (u32)(isKeyDown(KeyType::JUMP)                          & 0x1) << 4) |
-			( (u32)(isKeyDown(KeyType::SPECIAL1)                      & 0x1) << 5) |
+			( (u32)(isKeyDown(KeyType::AUX1)                          & 0x1) << 5) |
 			( (u32)(isKeyDown(KeyType::SNEAK)                         & 0x1) << 6) |
 			( (u32)(isKeyDown(KeyType::DIG)                           & 0x1) << 7) |
 			( (u32)(isKeyDown(KeyType::PLACE)                         & 0x1) << 8) |
@@ -2463,11 +2485,41 @@ inline void Game::step(f32 *dtime)
 	if (can_be_and_is_paused) { // This is for a singleplayer server
 		*dtime = 0;             // No time passes
 	} else {
+		if (simple_singleplayer_mode && !paused_animated_nodes.empty())
+			resumeAnimation();
+
 		if (server)
 			server->step(*dtime);
 
 		client->step(*dtime);
 	}
+}
+
+static void pauseNodeAnimation(PausedNodesList &paused, scene::ISceneNode *node) {
+	if (!node)
+		return;
+	for (auto &&child: node->getChildren())
+		pauseNodeAnimation(paused, child);
+	if (node->getType() != scene::ESNT_ANIMATED_MESH)
+		return;
+	auto animated_node = static_cast<scene::IAnimatedMeshSceneNode *>(node);
+	float speed = animated_node->getAnimationSpeed();
+	if (!speed)
+		return;
+	paused.push_back({grab(animated_node), speed});
+	animated_node->setAnimationSpeed(0.0f);
+}
+
+void Game::pauseAnimation()
+{
+	pauseNodeAnimation(paused_animated_nodes, smgr->getRootSceneNode());
+}
+
+void Game::resumeAnimation()
+{
+	for (auto &&pair: paused_animated_nodes)
+		pair.first->setAnimationSpeed(pair.second);
+	paused_animated_nodes.clear();
 }
 
 const ClientEventHandler Game::clientEventHandler[CLIENTEVENT_MAX] = {
@@ -2584,132 +2636,100 @@ void Game::handleClientEvent_HandleParticleEvent(ClientEvent *event,
 void Game::handleClientEvent_HudAdd(ClientEvent *event, CameraOrientation *cam)
 {
 	LocalPlayer *player = client->getEnv().getLocalPlayer();
-	auto &hud_server_to_client = client->getHUDTranslationMap();
 
-	u32 server_id = event->hudadd.server_id;
+	u32 server_id = event->hudadd->server_id;
 	// ignore if we already have a HUD with that ID
-	auto i = hud_server_to_client.find(server_id);
-	if (i != hud_server_to_client.end()) {
-		delete event->hudadd.pos;
-		delete event->hudadd.name;
-		delete event->hudadd.scale;
-		delete event->hudadd.text;
-		delete event->hudadd.align;
-		delete event->hudadd.offset;
-		delete event->hudadd.world_pos;
-		delete event->hudadd.size;
-		delete event->hudadd.text2;
+	auto i = m_hud_server_to_client.find(server_id);
+	if (i != m_hud_server_to_client.end()) {
+		delete event->hudadd;
 		return;
 	}
 
 	HudElement *e = new HudElement;
-	e->type   = (HudElementType)event->hudadd.type;
-	e->pos    = *event->hudadd.pos;
-	e->name   = *event->hudadd.name;
-	e->scale  = *event->hudadd.scale;
-	e->text   = *event->hudadd.text;
-	e->number = event->hudadd.number;
-	e->item   = event->hudadd.item;
-	e->dir    = event->hudadd.dir;
-	e->align  = *event->hudadd.align;
-	e->offset = *event->hudadd.offset;
-	e->world_pos = *event->hudadd.world_pos;
-	e->size = *event->hudadd.size;
-	e->z_index = event->hudadd.z_index;
-	e->text2  = *event->hudadd.text2;
-	hud_server_to_client[server_id] = player->addHud(e);
+	e->type   = static_cast<HudElementType>(event->hudadd->type);
+	e->pos    = event->hudadd->pos;
+	e->name   = event->hudadd->name;
+	e->scale  = event->hudadd->scale;
+	e->text   = event->hudadd->text;
+	e->number = event->hudadd->number;
+	e->item   = event->hudadd->item;
+	e->dir    = event->hudadd->dir;
+	e->align  = event->hudadd->align;
+	e->offset = event->hudadd->offset;
+	e->world_pos = event->hudadd->world_pos;
+	e->size      = event->hudadd->size;
+	e->z_index   = event->hudadd->z_index;
+	e->text2     = event->hudadd->text2;
+	m_hud_server_to_client[server_id] = player->addHud(e);
 
-	delete event->hudadd.pos;
-	delete event->hudadd.name;
-	delete event->hudadd.scale;
-	delete event->hudadd.text;
-	delete event->hudadd.align;
-	delete event->hudadd.offset;
-	delete event->hudadd.world_pos;
-	delete event->hudadd.size;
-	delete event->hudadd.text2;
+	delete event->hudadd;
 }
 
 void Game::handleClientEvent_HudRemove(ClientEvent *event, CameraOrientation *cam)
 {
 	LocalPlayer *player = client->getEnv().getLocalPlayer();
-	HudElement *e = player->removeHud(event->hudrm.id);
-	delete e;
+
+	auto i = m_hud_server_to_client.find(event->hudrm.id);
+	if (i != m_hud_server_to_client.end()) {
+		HudElement *e = player->removeHud(i->second);
+		delete e;
+		m_hud_server_to_client.erase(i);
+	}
+
 }
 
 void Game::handleClientEvent_HudChange(ClientEvent *event, CameraOrientation *cam)
 {
 	LocalPlayer *player = client->getEnv().getLocalPlayer();
 
-	u32 id = event->hudchange.id;
-	HudElement *e = player->getHud(id);
+	HudElement *e = nullptr;
 
-	if (e == NULL) {
-		delete event->hudchange.v3fdata;
-		delete event->hudchange.v2fdata;
-		delete event->hudchange.sdata;
-		delete event->hudchange.v2s32data;
+	auto i = m_hud_server_to_client.find(event->hudchange->id);
+	if (i != m_hud_server_to_client.end()) {
+		e = player->getHud(i->second);
+	}
+
+	if (e == nullptr) {
+		delete event->hudchange;
 		return;
 	}
 
-	switch (event->hudchange.stat) {
-		case HUD_STAT_POS:
-			e->pos = *event->hudchange.v2fdata;
-			break;
+#define CASE_SET(statval, prop, dataprop) \
+	case statval: \
+		e->prop = event->hudchange->dataprop; \
+		break
 
-		case HUD_STAT_NAME:
-			e->name = *event->hudchange.sdata;
-			break;
+	switch (event->hudchange->stat) {
+		CASE_SET(HUD_STAT_POS, pos, v2fdata);
 
-		case HUD_STAT_SCALE:
-			e->scale = *event->hudchange.v2fdata;
-			break;
+		CASE_SET(HUD_STAT_NAME, name, sdata);
 
-		case HUD_STAT_TEXT:
-			e->text = *event->hudchange.sdata;
-			break;
+		CASE_SET(HUD_STAT_SCALE, scale, v2fdata);
 
-		case HUD_STAT_NUMBER:
-			e->number = event->hudchange.data;
-			break;
+		CASE_SET(HUD_STAT_TEXT, text, sdata);
 
-		case HUD_STAT_ITEM:
-			e->item = event->hudchange.data;
-			break;
+		CASE_SET(HUD_STAT_NUMBER, number, data);
 
-		case HUD_STAT_DIR:
-			e->dir = event->hudchange.data;
-			break;
+		CASE_SET(HUD_STAT_ITEM, item, data);
 
-		case HUD_STAT_ALIGN:
-			e->align = *event->hudchange.v2fdata;
-			break;
+		CASE_SET(HUD_STAT_DIR, dir, data);
 
-		case HUD_STAT_OFFSET:
-			e->offset = *event->hudchange.v2fdata;
-			break;
+		CASE_SET(HUD_STAT_ALIGN, align, v2fdata);
 
-		case HUD_STAT_WORLD_POS:
-			e->world_pos = *event->hudchange.v3fdata;
-			break;
+		CASE_SET(HUD_STAT_OFFSET, offset, v2fdata);
 
-		case HUD_STAT_SIZE:
-			e->size = *event->hudchange.v2s32data;
-			break;
+		CASE_SET(HUD_STAT_WORLD_POS, world_pos, v3fdata);
 
-		case HUD_STAT_Z_INDEX:
-			e->z_index = event->hudchange.data;
-			break;
+		CASE_SET(HUD_STAT_SIZE, size, v2s32data);
 
-		case HUD_STAT_TEXT2:
-			e->text2 = *event->hudchange.sdata;
-			break;
+		CASE_SET(HUD_STAT_Z_INDEX, z_index, data);
+
+		CASE_SET(HUD_STAT_TEXT2, text2, sdata);
 	}
 
-	delete event->hudchange.v3fdata;
-	delete event->hudchange.v2fdata;
-	delete event->hudchange.sdata;
-	delete event->hudchange.v2s32data;
+#undef CASE_SET
+
+	delete event->hudchange;
 }
 
 void Game::handleClientEvent_SetSky(ClientEvent *event, CameraOrientation *cam)
@@ -3261,7 +3281,8 @@ bool Game::nodePlacement(const ItemDefinition &selected_def,
 	const ItemStack &selected_item, const v3s16 &nodepos, const v3s16 &neighbourpos,
 	const PointedThing &pointed, const NodeMetadata *meta)
 {
-	std::string prediction = selected_def.node_placement_prediction;
+	const auto &prediction = selected_def.node_placement_prediction;
+
 	const NodeDefManager *nodedef = client->ndef();
 	ClientMap &map = client->getEnv().getClientMap();
 	MapNode node;
@@ -3331,8 +3352,7 @@ bool Game::nodePlacement(const ItemDefinition &selected_def,
 
 	if (!found) {
 		errorstream << "Node placement prediction failed for "
-			<< selected_def.name << " (places "
-			<< prediction
+			<< selected_def.name << " (places " << prediction
 			<< ") - Name not known" << std::endl;
 		// Handle this as if prediction was empty
 		// Report to server
@@ -3343,9 +3363,14 @@ bool Game::nodePlacement(const ItemDefinition &selected_def,
 	const ContentFeatures &predicted_f = nodedef->get(id);
 
 	// Predict param2 for facedir and wallmounted nodes
+	// Compare core.item_place_node() for what the server does
 	u8 param2 = 0;
 
-	if (predicted_f.param_type_2 == CPT2_WALLMOUNTED ||
+	const u8 place_param2 = selected_def.place_param2;
+
+	if (place_param2) {
+		param2 = place_param2;
+	} else if (predicted_f.param_type_2 == CPT2_WALLMOUNTED ||
 			predicted_f.param_type_2 == CPT2_COLORED_WALLMOUNTED) {
 		v3s16 dir = nodepos - neighbourpos;
 
@@ -3356,9 +3381,7 @@ bool Game::nodePlacement(const ItemDefinition &selected_def,
 		} else {
 			param2 = dir.Z < 0 ? 5 : 4;
 		}
-	}
-
-	if (predicted_f.param_type_2 == CPT2_FACEDIR ||
+	} else if (predicted_f.param_type_2 == CPT2_FACEDIR ||
 			predicted_f.param_type_2 == CPT2_COLORED_FACEDIR) {
 		v3s16 dir = nodepos - floatToInt(client->getEnv().getLocalPlayer()->getPosition(), BS);
 
@@ -3369,11 +3392,9 @@ bool Game::nodePlacement(const ItemDefinition &selected_def,
 		}
 	}
 
-	assert(param2 <= 5);
-
-	//Check attachment if node is in group attached_node
-	if (((ItemGroupList) predicted_f.groups)["attached_node"] != 0) {
-		static v3s16 wallmounted_dirs[8] = {
+	// Check attachment if node is in group attached_node
+	if (itemgroup_get(predicted_f.groups, "attached_node") != 0) {
+		const static v3s16 wallmounted_dirs[8] = {
 			v3s16(0, 1, 0),
 			v3s16(0, -1, 0),
 			v3s16(1, 0, 0),
@@ -3398,11 +3419,11 @@ bool Game::nodePlacement(const ItemDefinition &selected_def,
 	}
 
 	// Apply color
-	if ((predicted_f.param_type_2 == CPT2_COLOR
+	if (!place_param2 && (predicted_f.param_type_2 == CPT2_COLOR
 			|| predicted_f.param_type_2 == CPT2_COLORED_FACEDIR
 			|| predicted_f.param_type_2 == CPT2_COLORED_WALLMOUNTED)) {
-		const std::string &indexstr = selected_item.metadata.getString(
-			"palette_index", 0);
+		const auto &indexstr = selected_item.metadata.
+			getString("palette_index", 0);
 		if (!indexstr.empty()) {
 			s32 index = mystoi(indexstr);
 			if (predicted_f.param_type_2 == CPT2_COLOR) {
@@ -3442,11 +3463,10 @@ bool Game::nodePlacement(const ItemDefinition &selected_def,
 			soundmaker->m_player_rightpunch_sound = selected_def.sound_place_failed;
 			return false;
 		}
-	} catch (InvalidPositionException &e) {
+	} catch (const InvalidPositionException &e) {
 		errorstream << "Node placement prediction failed for "
 			<< selected_def.name << " (places "
-			<< prediction
-			<< ") - Position not loaded" << std::endl;
+			<< prediction << ") - Position not loaded" << std::endl;
 		soundmaker->m_player_rightpunch_sound = selected_def.sound_place_failed;
 		return false;
 	}
@@ -4200,6 +4220,9 @@ void Game::showPauseMenu()
 			fs_src, txt_dst, client->getFormspecPrepend(), sound);
 	formspec->setFocus("btn_continue");
 	formspec->doPause = true;
+
+	if (simple_singleplayer_mode)
+		pauseAnimation();
 }
 
 /****************************************************************************/

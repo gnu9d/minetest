@@ -63,6 +63,6 @@
 	<translation type="gettext">minetest-hacked</translation>
 	<update_contact>gnu9d@list.ru</update_contact>
 	<releases>
-		<release date="2020-07-09" version="5.3.0"/>
+		<release date="2021-02-23" version="5.4.0"/>
 	</releases>
 </component>

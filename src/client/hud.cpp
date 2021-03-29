@@ -571,8 +571,6 @@ void Hud::drawCompassTranslate(HudElement *e, video::ITexture *texture,
 void Hud::drawCompassRotate(HudElement *e, video::ITexture *texture,
 		const core::rect<s32> &rect, int angle)
 {
-	core::dimension2di imgsize(texture->getOriginalSize());
-
 	core::rect<s32> oldViewPort = driver->getViewPort();
 	core::matrix4 oldProjMat = driver->getTransform(video::ETS_PROJECTION);
 	core::matrix4 oldViewMat = driver->getTransform(video::ETS_VIEW);
@@ -952,7 +950,7 @@ void drawItemStack(
 
 	if (imesh && imesh->mesh) {
 		scene::IMesh *mesh = imesh->mesh;
-		driver->clearZBuffer();
+		driver->clearBuffers(video::ECBF_DEPTH);
 		s32 delta = 0;
 		if (rotation_kind < IT_ROT_NONE) {
 			MeshTimeInfo &ti = rotation_time_infos[rotation_kind];

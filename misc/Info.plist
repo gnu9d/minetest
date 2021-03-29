@@ -5,10 +5,16 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleExecutable</key>
-	<string>minetest</string>
+	<string>minetest-hacked</string>
 	<key>CFBundleIconFile</key>
 	<string>minetest-hacked-icon.icns</string>
+	<key>CFBundleName</key>
+	<string>Minetest Hacked</string>
+	<key>CFBundleDisplayName</key>
+	<string>Minetest Hacked</string>
 	<key>CFBundleIdentifier</key>
 	<string>net.minetest.minetest</string>
+	<key>NSHighResolutionCapable</key>
+	<false/>
 </dict>
 </plist>
