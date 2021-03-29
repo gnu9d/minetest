@@ -208,14 +208,14 @@ if(UNIX AND NOT APPLE)
 	install(FILES "doc/minetest.6" "doc/minetestserver.6" DESTINATION "${MANDIR}/man6")
 	install(FILES "misc/net.minetest.minetest.desktop" DESTINATION "${XDG_APPS_DIR}")
 	install(FILES "misc/net.minetest.minetest.appdata.xml" DESTINATION "${APPDATADIR}")
-	install(FILES "misc/minetest.svg" DESTINATION "${ICONDIR}/hicolor/scalable/apps")
-	install(FILES "misc/minetest-xorg-icon-128.png"
+	install(FILES "misc/minetest-hacked.svg" DESTINATION "${ICONDIR}/hicolor/scalable/apps")
+	install(FILES "misc/minetest-hacked-xorg-icon-128.png"
 		DESTINATION "${ICONDIR}/hicolor/128x128/apps"
-		RENAME "minetest.png")
+		RENAME "minetest-hacked.png")
 endif()
 
 if(APPLE)
-	install(FILES "misc/minetest-icon.icns" DESTINATION "${SHAREDIR}")
+	install(FILES "misc/minetest-hacked-icon.icns" DESTINATION "${SHAREDIR}")
 	install(FILES "misc/Info.plist" DESTINATION "${BUNDLE_PATH}/Contents")
 endif()
 
@@ -301,7 +301,7 @@ if(WIN32)
 		set(CPACK_CREATE_DESKTOP_LINKS ${PROJECT_NAME})
 		set(CPACK_PACKAGING_INSTALL_PREFIX "/${PROJECT_NAME_CAPITALIZED}")
 
-		set(CPACK_WIX_PRODUCT_ICON "${CMAKE_CURRENT_SOURCE_DIR}/misc/minetest-icon.ico")
+		set(CPACK_WIX_PRODUCT_ICON "${CMAKE_CURRENT_SOURCE_DIR}/misc/minetest-hacked-icon.ico")
 		# Supported languages can be found at
 		# http://wixtoolset.org/documentation/manual/v3/wixui/wixui_localization.html
 		#set(CPACK_WIX_CULTURES "ar-SA,bg-BG,ca-ES,hr-HR,cs-CZ,da-DK,nl-NL,en-US,et-EE,fi-FI,fr-FR,de-DE")

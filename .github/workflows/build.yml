@@ -45,7 +45,7 @@ jobs:
 
       - name: Test
         run: |
-          ./bin/minetest --run-unittests
+          ./bin/minetest-hacked --run-unittests
 
   # This is the current gcc compiler (available in bionic)
   gcc_8:
@@ -66,7 +66,7 @@ jobs:
 
       - name: Test
         run: |
-          ./bin/minetest --run-unittests
+          ./bin/minetest-hacked --run-unittests
 
   # This is our minor clang compiler
   clang_3_9:
@@ -87,7 +87,7 @@ jobs:
 
       - name: Test
         run: |
-          ./bin/minetest --run-unittests
+          ./bin/minetest-hacked --run-unittests
 
   # This is the current clang version
   clang_9:
@@ -109,11 +109,11 @@ jobs:
 
       - name: Test
         run: |
-          ./bin/minetest --run-unittests
+          ./bin/minetest-hacked --run-unittests
 
       - name: Valgrind
         run: |
-          valgrind --leak-check=full --leak-check-heuristics=all --undef-value-errors=no --error-exitcode=9 ./bin/minetest --run-unittests
+          valgrind --leak-check=full --leak-check-heuristics=all --undef-value-errors=no --error-exitcode=9 ./bin/minetest-hacked --run-unittests
 
   # Build with prometheus-cpp (server-only)
   clang_9_prometheus:
@@ -163,7 +163,7 @@ jobs:
 
       - name: Test
         run: |
-          ./bin/minetest --run-unittests
+          ./bin/minetest-hacked --run-unittests
 
   docker:
     name: "Docker image"
