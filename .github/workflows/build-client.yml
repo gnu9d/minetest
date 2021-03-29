@@ -27,7 +27,8 @@ on:
 
 jobs:
   # This is our minor gcc compiler
-  🐧-gcc_6:
+  gcc_6:
+    name: "🐧-gcc_6"
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
@@ -54,7 +55,8 @@ jobs:
             path: ./
 
   # This is the current gcc compiler (available in bionic)
-  🐧-gcc_8:
+  gcc_8:
+    name: "🐧-gcc_8"
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
@@ -82,7 +84,8 @@ jobs:
             path: ./
 
   # This is our minor clang compiler
-  🐧-clang_3_9:
+  clang_3_9:
+    name: "🐧-clang_3_9"
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
@@ -110,7 +113,8 @@ jobs:
             path: ./
 
   # This is the current clang version
-  🐧-clang_9:
+  clang_9:
+    name: "🐧-clang_9"
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
@@ -142,8 +146,8 @@ jobs:
             path: ./
 
   # Build without freetype (client-only)
-  🐧-clang_9_no_freetype:
-    name: "clang_9 (FREETYPE=0)"
+  clang_9_no_freetype:
+    name: "🐧-clang_9 (FREETYPE=0)"
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
@@ -170,8 +174,8 @@ jobs:
             name: '🐧-clang9-no_freetype'
             path: ./
 
-  💩-win32:
-    name: "MinGW cross-compiler (32-bit)"
+  win32:
+    name: "MinGW cross-compiler (💩32-bit)"
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
@@ -194,8 +198,8 @@ jobs:
             name: '💩-mingw-32'
             path: ./
 
-  💩-win64:
-    name: "MinGW cross-compiler (64-bit)"
+  win64:
+    name: "MinGW cross-compiler (💩64-bit)"
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
