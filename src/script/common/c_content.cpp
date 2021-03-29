@@ -183,6 +183,7 @@ void push_item_definition_full(lua_State *L, const ItemDefinition &i)
 }
 
 /******************************************************************************/
+#ifndef SERVER
 void read_object_properties(lua_State *L, int index,
 		GenericCAO *cao, ObjectProperties *prop, IItemDefManager *idef)
 {
@@ -324,6 +325,7 @@ void read_object_properties(lua_State *L, int index,
 
 	getstringfield(L, -1, "damage_texture_modifier", prop->damage_texture_modifier);
 }
+#endif // SERVER
 
 void read_object_properties(lua_State *L, int index,
 		ServerActiveObject *sao, ObjectProperties *prop, IItemDefManager *idef)
@@ -1801,6 +1803,7 @@ std::vector<ItemStack> read_items(lua_State *L, int index, Server *srv)
 }
 
 /******************************************************************************/
+#ifndef SERVER
 std::vector<ItemStack> read_items(lua_State *L, int index, Client *clt)
 {
 	if(index < 0)
@@ -1822,7 +1825,7 @@ std::vector<ItemStack> read_items(lua_State *L, int index, Client *clt)
 	}
 	return items;
 }
-
+#endif // SERVER
 /******************************************************************************/
 void luaentity_get(lua_State *L, u16 id)
 {
